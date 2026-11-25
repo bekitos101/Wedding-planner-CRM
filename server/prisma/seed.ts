@@ -1,5 +1,9 @@
 import bcrypt from 'bcryptjs';
 import { PrismaClient, type TaskPriority } from '@prisma/client';
+import { seedBudget } from './seeds/budget.js';
+import { seedGuests } from './seeds/guests.js';
+import { seedPlanning } from './seeds/planning.js';
+import { seedTasks } from './seeds/tasks.js';
 
 const prisma = new PrismaClient();
 
@@ -43,13 +47,6 @@ const templates: { name: string; description: string; items: Item[] }[] = [
   },
 ];
 
-function monthsFromNow(months: number): Date {
-  const d = new Date();
-  d.setUTCHours(15, 0, 0, 0);
-  d.setUTCMonth(d.getUTCMonth() + months);
-  return d;
-}
-
 async function main() {
   const passwordHash = await bcrypt.hash('Password123!', 12);
 
@@ -66,13 +63,13 @@ async function main() {
   });
 
   const weddings = [
-    { id: WEDDING_1_ID, coupleNames: 'Emma & Daniel', months: 6, location: 'Lake Balaton Manor', totalBudget: '25000.00' },
-    { id: WEDDING_2_ID, coupleNames: 'Sofia & Marco', months: 10, location: 'Budapest Riverside Hall', totalBudget: '18000.00' },
+    { id: WEDDING_1_ID, coupleNames: 'Emma & Daniel', weddingDate: '2027-06-19', rsvpDeadline: '2027-05-19', location: 'Lake Balaton Manor', totalBudget: '25000.00' },
+    { id: WEDDING_2_ID, coupleNames: 'Sofia & Marco', weddingDate: '2027-09-25', rsvpDeadline: '2027-08-25', location: 'Budapest Riverside Hall', totalBudget: '18000.00' },
   ];
   for (const w of weddings) {
-    const weddingDate = monthsFromNow(w.months);
-    const rsvpDeadline = new Date(weddingDate);
-    rsvpDeadline.setUTCMonth(rsvpDeadline.getUTCMonth() - 1);
+    // Calendar dates (@db.Date): fixed "YYYY-MM-DD" values keep the seed idempotent.
+    const weddingDate = new Date(`${w.weddingDate}T00:00:00.000Z`);
+    const rsvpDeadline = new Date(`${w.rsvpDeadline}T00:00:00.000Z`);
     await prisma.wedding.upsert({
       where: { id: w.id },
       update: {},
@@ -94,6 +91,22 @@ async function main() {
     create: { weddingId: WEDDING_1_ID, userId: member.id },
   });
 
+  // Demo tasks for wedding 1 (fixed ids, idempotent) so the list shows non-zero progress (FR-10).
+  const demoTasks: [string, string, 'TODO' | 'IN_PROGRESS' | 'COMPLETED', number][] = [
+    ['00000000-0000-4000-8000-0000000000a1', 'Book the venue', 'COMPLETED', 20],
+    ['00000000-0000-4000-8000-0000000000a2', 'Hire the photographer', 'IN_PROGRESS', 45],
+    ['00000000-0000-4000-8000-0000000000a3', 'Choose the caterer', 'TODO', 70],
+    ['00000000-0000-4000-8000-0000000000a4', 'Send invitations', 'TODO', 100],
+  ];
+  for (const [id, title, status, days] of demoTasks) {
+    const dueDate = new Date(Date.now() + days * 86400000);
+    await prisma.task.upsert({
+      where: { id },
+      update: {},
+      create: { id, weddingId: WEDDING_1_ID, title, status, dueDate, assigneeId: status === 'IN_PROGRESS' ? member.id : null },
+    });
+  }
+
   for (const t of templates) {
     const template = await prisma.checklistTemplate.upsert({
       where: { name: t.name },
@@ -109,7 +122,14 @@ async function main() {
     }
   }
 
-  console.log('Seed complete: 2 users, 2 weddings, 1 membership, 2 checklist templates.');
+  // Phase 3 tracks add their demo data in prisma/seeds/<track>.ts (don't edit this file).
+  const ctx = { prisma, ownerId: owner.id, memberId: member.id, wedding1Id: WEDDING_1_ID, wedding2Id: WEDDING_2_ID };
+  await seedGuests(ctx);
+  await seedTasks(ctx);
+  await seedBudget(ctx);
+  await seedPlanning(ctx);
+
+  console.log('Seed complete: 2 users, 2 weddings, 1 membership, 2 checklist templates, phase 3 demo data.');
 }
 
 main()

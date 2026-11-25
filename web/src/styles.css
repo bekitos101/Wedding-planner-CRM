@@ -1,35 +1,186 @@
-:root {
-  --color-primary: #7c3a5e;
-  --color-bg: #f6f3f5;
-  --color-surface: #ffffff;
-  --color-text: #231d21;
-  --color-muted: #6f6670;
-  --color-border: #e4dde2;
-  --color-success: #2e7d4f;
-  --color-warning: #b7791f;
-  --color-danger: #c0392b;
+@import "tailwindcss";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/playfair-display/500.css";
+@import "@fontsource/playfair-display/600.css";
+
+/* Design tokens: "elegant & soft" (ivory/blush, deep rose accent, sage secondary). */
+@theme {
+  --color-ivory: #fbf8f4;
+  --color-blush: #f8ebe9;
+  --color-ink: #2b2327;
+  --color-muted: #6b6168;
+  --color-line: #e8ddd8;
+
+  --color-rose-50: #fdf3f5;
+  --color-rose-100: #fbe6ea;
+  --color-rose-200: #f5ccd6;
+  --color-rose-300: #ecaabb;
+  --color-rose-400: #de7a96;
+  --color-rose-500: #c94f73;
+  --color-rose-600: #ad3557;
+  --color-rose-700: #8f2a47;
+  --color-rose-800: #74243c;
+  --color-rose-900: #5e2033;
+
+  --color-sage-50: #f4f7f3;
+  --color-sage-100: #e4ece2;
+  --color-sage-200: #c9d8c6;
+  --color-sage-500: #7a9378;
+  --color-sage-700: #4a6249;
+  --color-sage-800: #3a4e39;
+
+  --font-serif: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius-card: 1rem;
+  --shadow-soft: 0 1px 2px rgb(43 35 39 / 0.04), 0 8px 24px -8px rgb(143 42 71 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(43 35 39 / 0.05), 0 16px 32px -12px rgb(143 42 71 / 0.22);
 }
-* { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; background: var(--color-bg); color: var(--color-text); }
-h1 { font-size: 1.5rem; margin: 0 0 1rem; }
-h2 { font-size: 1.15rem; margin: 0 0 0.75rem; }
-a { color: var(--color-primary); }
-.muted { color: var(--color-muted); }
-.card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; padding: 1.25rem; }
-.chip { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.85rem; font-weight: 500; margin-right: 0.4rem; background: var(--color-border); color: var(--color-text); }
-.chip-success { background: #dff2e6; color: var(--color-success); }
-.chip-warning { background: #fbefd5; color: var(--color-warning); }
-.chip-danger { background: #f9dedb; color: var(--color-danger); }
-.auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-.auth-card { width: 100%; max-width: 24rem; }
-.field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.9rem; }
-.field label { font-weight: 500; font-size: 0.9rem; }
-.field input { padding: 0.5rem 0.6rem; border: 1px solid var(--color-border); border-radius: 6px; font: inherit; }
-.field input.invalid { border-color: var(--color-danger); }
-.field-error { color: var(--color-danger); font-size: 0.85rem; }
-.alert { padding: 0.6rem 0.8rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
-.alert-danger { background: #f9dedb; color: var(--color-danger); }
-.alert-success { background: #dff2e6; color: var(--color-success); }
-.btn { padding: 0.55rem 1rem; border: 0; border-radius: 6px; background: var(--color-primary); color: #fff; font: inherit; cursor: pointer; }
-.btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-outline { background: transparent; color: #fff; border: 1px solid rgba(255, 255, 255, 0.6); padding: 0.3rem 0.8rem; }
+
+@layer base {
+  html {
+    scroll-padding-top: 5rem;
+  }
+  body {
+    @apply bg-ivory font-sans text-ink antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-serif text-ink;
+  }
+  h1 {
+    @apply mb-4 text-3xl font-semibold;
+  }
+  h2 {
+    @apply mb-3 text-xl font-semibold;
+  }
+  a {
+    @apply text-rose-700 underline-offset-2;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-rose-600;
+  }
+  table {
+    @apply w-full border-collapse;
+  }
+  th {
+    @apply border-b border-line px-3 py-2 text-left text-sm font-medium text-muted;
+  }
+  td {
+    @apply border-b border-line px-3 py-2;
+  }
+  dt {
+    @apply text-muted;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border border-transparent px-5 py-2.5 text-sm font-medium no-underline transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply bg-rose-700 text-white hover:bg-rose-800;
+  }
+  .btn-secondary {
+    @apply border-rose-300 bg-white/70 text-rose-800 hover:bg-rose-50;
+  }
+  .btn-danger {
+    @apply bg-red-700 text-white hover:bg-red-800;
+  }
+  .btn-sm {
+    @apply px-3.5 py-1.5 text-sm;
+  }
+  .btn-lg {
+    @apply px-7 py-3 text-base;
+  }
+
+  .card {
+    @apply rounded-card border border-line bg-white p-5 shadow-soft sm:p-6;
+  }
+
+  /* Chips: one look for status/role/RSVP/money states everywhere (NFR-12). */
+  .chip {
+    @apply inline-flex items-center rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-700;
+  }
+  .chip-success {
+    @apply bg-sage-100 text-sage-800;
+  }
+  .chip-warning {
+    @apply bg-amber-100 text-amber-900;
+  }
+  .chip-danger {
+    @apply bg-red-100 text-red-800;
+  }
+  .chip-neutral {
+    @apply bg-stone-100 text-stone-700;
+  }
+  .chip-owner {
+    @apply bg-rose-100 text-rose-800;
+  }
+
+  .label {
+    @apply mb-1 block text-sm font-medium text-ink;
+  }
+  .input {
+    @apply block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-base text-ink placeholder:text-stone-500 focus-visible:border-rose-600 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-rose-600;
+  }
+  .input.invalid {
+    @apply border-red-600;
+  }
+  .field {
+    @apply mb-4 flex flex-col;
+  }
+  .field-error {
+    @apply mt-1 text-sm text-red-700;
+  }
+
+  .alert {
+    @apply mb-4 rounded-lg border px-4 py-3 text-sm;
+  }
+  .alert-danger {
+    @apply border-red-200 bg-red-50 text-red-800;
+  }
+  .alert-success {
+    @apply border-sage-200 bg-sage-50 text-sage-800;
+  }
+  .alert-info {
+    @apply border-rose-200 bg-rose-50 text-rose-900;
+  }
+  .alert-warning {
+    @apply border-amber-200 bg-amber-50 text-amber-900;
+  }
+
+  .progress {
+    @apply h-2 overflow-hidden rounded-full bg-rose-100;
+  }
+  .progress > span {
+    @apply block h-full rounded-full bg-sage-500;
+  }
+
+  .nav-link {
+    @apply rounded-full px-3 py-1.5 text-sm font-medium text-ink no-underline hover:bg-rose-50 hover:text-rose-800;
+  }
+  .nav-link.active {
+    @apply bg-rose-100 text-rose-800;
+  }
+
+  .skip-link {
+    @apply fixed top-2 left-2 z-50 -translate-y-20 rounded-full bg-rose-700 px-4 py-2 text-sm font-medium text-white no-underline focus:translate-y-0;
+  }
+}
+
+@layer components {
+  .chip-info {
+    @apply bg-sky-100 text-sky-800;
+  }
+  /* Table rows on desktop, stacked cards on mobile. */
+  .row-card {
+    @apply flex flex-col gap-2 rounded-card border border-line bg-white p-4 shadow-soft sm:flex-row sm:items-center sm:gap-4;
+  }
+  .row-card.highlight {
+    @apply border-amber-400 bg-amber-50/60;
+  }
+}

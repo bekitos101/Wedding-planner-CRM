@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Wedding" ALTER COLUMN "weddingDate" SET DATA TYPE DATE,
+ALTER COLUMN "rsvpDeadline" SET DATA TYPE DATE;

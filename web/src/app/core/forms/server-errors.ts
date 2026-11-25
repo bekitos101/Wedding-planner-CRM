@@ -30,3 +30,12 @@ export function fieldError(
 export function errorMessage(err: unknown): string {
   return (err as ApiError)?.error?.message ?? 'Something went wrong. Please try again.';
 }
+
+/** For PATCH: keeps only the body keys whose form control was changed by the user (no lost updates). */
+export function pickDirty<T extends Record<string, unknown>>(form: FormGroup, body: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const key of Object.keys(body) as (keyof T & string)[]) {
+    if (form.get(key)?.dirty) out[key] = body[key];
+  }
+  return out;
+}

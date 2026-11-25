@@ -6,66 +6,66 @@ import { applyServerFieldErrors, errorMessage, fieldError } from '../../core/for
 import { ApiError } from '../../core/models/api-error';
 import { UpdateProfileRequest } from '../../core/models/user';
 
+import { FieldDirective } from '../../core/ui/field.directive';
 @Component({
   selector: 'app-profile-page',
-  imports: [ReactiveFormsModule],
+  imports: [FieldDirective, ReactiveFormsModule],
   template: `
     <h1>Profile</h1>
 
-    <section class="card section">
+    <section class="card mb-5 max-w-lg">
       <h2>Your details</h2>
       @if (detailsError(); as msg) { <p class="alert alert-danger" role="alert">{{ msg }}</p> }
       @if (detailsOk()) { <p class="alert alert-success" role="status">Profile saved.</p> }
       <form [formGroup]="details" (ngSubmit)="saveDetails()" novalidate>
         <div class="field">
-          <label for="name">Name</label>
-          <input id="name" formControlName="name" [class.invalid]="err(details.controls.name, nameMsgs)" />
+          <label class="label" for="name">Name</label>
+          <input class="input" id="name" formControlName="name" [class.invalid]="err(details.controls.name, nameMsgs)" />
           @if (err(details.controls.name, nameMsgs); as e) { <span class="field-error">{{ e }}</span> }
         </div>
         <div class="field">
-          <label for="email">Email</label>
-          <input id="email" type="email" formControlName="email"
+          <label class="label" for="email">Email</label>
+          <input class="input" id="email" type="email" formControlName="email"
             [class.invalid]="err(details.controls.email, emailMsgs)" />
           @if (err(details.controls.email, emailMsgs); as e) { <span class="field-error">{{ e }}</span> }
         </div>
         @if (emailChanged()) {
           <div class="field">
-            <label for="detailsCurrent">Current password (required to change email)</label>
-            <input id="detailsCurrent" type="password" formControlName="currentPassword"
+            <label class="label" for="detailsCurrent">Current password (required to change email)</label>
+            <input class="input" id="detailsCurrent" type="password" formControlName="currentPassword"
               autocomplete="current-password" [class.invalid]="err(details.controls.currentPassword, curMsgs)" />
             @if (err(details.controls.currentPassword, curMsgs); as e) { <span class="field-error">{{ e }}</span> }
           </div>
         }
-        <button class="btn" type="submit" [disabled]="detailsPending()">
+        <button class="btn btn-primary" type="submit" [disabled]="detailsPending()">
           {{ detailsPending() ? 'Saving...' : 'Save changes' }}
         </button>
       </form>
     </section>
 
-    <section class="card section">
+    <section class="card mb-5 max-w-lg">
       <h2>Change password</h2>
       @if (pwError(); as msg) { <p class="alert alert-danger" role="alert">{{ msg }}</p> }
       @if (pwOk()) { <p class="alert alert-success" role="status">Password changed.</p> }
       <form [formGroup]="pw" (ngSubmit)="savePassword()" novalidate>
         <div class="field">
-          <label for="password">New password</label>
-          <input id="password" type="password" formControlName="password" autocomplete="new-password"
+          <label class="label" for="password">New password</label>
+          <input class="input" id="password" type="password" formControlName="password" autocomplete="new-password"
             [class.invalid]="err(pw.controls.password, newMsgs)" />
           @if (err(pw.controls.password, newMsgs); as e) { <span class="field-error">{{ e }}</span> }
         </div>
         <div class="field">
-          <label for="pwCurrent">Current password</label>
-          <input id="pwCurrent" type="password" formControlName="currentPassword"
+          <label class="label" for="pwCurrent">Current password</label>
+          <input class="input" id="pwCurrent" type="password" formControlName="currentPassword"
             autocomplete="current-password" [class.invalid]="err(pw.controls.currentPassword, curMsgs)" />
           @if (err(pw.controls.currentPassword, curMsgs); as e) { <span class="field-error">{{ e }}</span> }
         </div>
-        <button class="btn" type="submit" [disabled]="pwPending()">
+        <button class="btn btn-primary" type="submit" [disabled]="pwPending()">
           {{ pwPending() ? 'Saving...' : 'Change password' }}
         </button>
       </form>
     </section>
   `,
-  styles: `.section { max-width: 32rem; margin-bottom: 1.25rem; }`,
 })
 export class ProfilePage {
   private readonly fb = inject(FormBuilder).nonNullable;

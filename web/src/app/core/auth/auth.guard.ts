@@ -9,8 +9,12 @@ export const authGuard: CanActivateFn = (_route, state) => {
   return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
 };
 
+/** Login and register are for anonymous visitors; planners go to their weddings. */
 export const guestGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
-  return auth.isLoggedIn() ? router.createUrlTree(['/']) : true;
+  return auth.isLoggedIn() ? router.createUrlTree(['/weddings']) : true;
 };
+
+/** The public landing page at `/` behaves like login/register: logged-in planners go to `/weddings`. */
+export const landingGuard: CanActivateFn = guestGuard;

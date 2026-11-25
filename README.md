@@ -141,7 +141,10 @@ for local development as they are.
 | `JWT_SECRET` | placeholder | Signs login tokens. **At least 32 characters.** Use a long random value outside local dev; the server refuses the placeholder in production |
 | `PORT` | `3000` | API port |
 | `SMTP_HOST` / `SMTP_PORT` | `localhost` / `1025` | Mail server (Mailpit locally) |
+| `SMTP_USER` / `SMTP_PASS` / `SMTP_SECURE` | empty / empty / `false` | Login and TLS for a real mail provider (not needed for Mailpit) |
 | `SMTP_FROM` | `Wedding Organizer <no-reply@wedding.local>` | Sender address on emails |
+| `CONTACT_TO` | `hello@wedding-organizer.local` | Where contact-form messages go. **Set a real inbox outside local dev**, otherwise messages are lost |
+| `TRUST_PROXY` | `0` | Number of reverse proxies in front of the API. Set to `1` behind one proxy so the contact-form rate limit is per visitor |
 | `APP_BASE_URL` | `http://localhost:4200` | Used to build links in emails (e.g. RSVP links) |
 | `REMINDER_DAYS_BEFORE` | `3` | Days before a task deadline that reminders are sent |
 | `CRON_ENABLED` | `true` | Turns the scheduled jobs (reminders, email retries) on or off |
@@ -203,3 +206,10 @@ Routes never access the database directly, and all permission checks happen on t
 - [docs/SPEC.md](docs/SPEC.md): requirements specification (Markdown copy; the PDF is authoritative)
 - [docs/API.md](docs/API.md): every endpoint, request/response shape and error code
 - [docs/PLAN.md](docs/PLAN.md): build phases and what's done
+
+---
+
+## 9. Credits
+
+- Fonts: Playfair Display and Inter, self-hosted through `@fontsource` packages (SIL Open Font License 1.1).
+- The public pages currently use built-in SVG ornaments and gradients instead of photographs. If stock photos from Unsplash are added to `web/public/images/`, list the photo page and photographer here.

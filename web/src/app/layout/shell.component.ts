@@ -1,46 +1,23 @@
-import { Component, inject } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { AuthService } from '../core/auth/auth.service';
+import { Component } from '@angular/core';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { SiteFooterComponent } from '../core/layout/site-footer.component';
+import { SiteHeaderComponent } from '../core/layout/site-header.component';
 
+/** Planner app shell: shared header, side navigation, footer. */
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, SiteHeaderComponent, SiteFooterComponent],
   template: `
-    <header class="topbar">
-      <a routerLink="/" class="brand">Wedding Organizer</a>
-      <span class="spacer"></span>
-      @if (auth.currentUser(); as user) {
-        <a routerLink="/profile" class="user">{{ user.name }}</a>
-        <button type="button" class="btn btn-outline" (click)="logout()">Log out</button>
-      }
-    </header>
-    <div class="body">
-      <nav class="sidenav" aria-label="Main">
-        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Weddings</a>
-        <a routerLink="/profile" routerLinkActive="active">Profile</a>
+    <app-site-header />
+    <div class="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 md:flex-row md:gap-8">
+      <nav class="flex shrink-0 gap-1 md:w-44 md:flex-col" aria-label="Main">
+        <a routerLink="/weddings" routerLinkActive="active" class="nav-link">Weddings</a>
+        <a routerLink="/profile" routerLinkActive="active" class="nav-link">Profile</a>
       </nav>
-      <main class="content"><router-outlet /></main>
+      <main id="main" tabindex="-1" class="min-w-0 flex-1 outline-none"><router-outlet /></main>
     </div>
+    <app-site-footer />
   `,
-  styles: `
-    :host { display: flex; flex-direction: column; min-height: 100vh; }
-    .topbar { background: var(--color-primary); color: #fff; padding: 0.75rem 1.25rem; display: flex; align-items: center; gap: 1rem; }
-    .spacer { flex: 1; }
-    .brand, .user { color: #fff; text-decoration: none; }
-    .brand { font-weight: 600; font-size: 1.1rem; }
-    .body { display: flex; flex: 1; }
-    .sidenav { width: 13rem; background: var(--color-surface); border-right: 1px solid var(--color-border); padding: 1rem 0.5rem; display: flex; flex-direction: column; gap: 0.25rem; }
-    .sidenav a { padding: 0.5rem 0.75rem; border-radius: 6px; color: var(--color-text); text-decoration: none; }
-    .sidenav a:hover { background: var(--color-bg); }
-    .sidenav a.active { background: var(--color-primary); color: #fff; }
-    .content { flex: 1; padding: 1.5rem; min-width: 0; }
-  `,
+  host: { class: 'flex min-h-screen flex-col' },
 })
-export class ShellComponent {
-  protected readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
-
-  logout(): void {
-    this.auth.logout().subscribe(() => void this.router.navigateByUrl('/login'));
-  }
-}
+export class ShellComponent {}

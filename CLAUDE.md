@@ -9,7 +9,8 @@ suppliers, day schedule, dashboard, notifications.
 - REST contract shared by frontend and backend: @docs/API.md
 
 ## Stack (fixed by the spec — do not swap)
-- **web/**: Angular + TypeScript, HTML, CSS
+- **web/**: Angular + TypeScript, HTML, CSS with **Tailwind CSS v4** (utility classes; shared
+  theme tokens and a few component classes in `web/src/styles.css`). No other UI library.
 - **server/**: Node.js + Express + TypeScript, Prisma ORM, PostgreSQL
 - Auth: JWT (httpOnly cookie or Bearer) + bcrypt, Express middleware
 - Email: Nodemailer over SMTP. Local dev uses **Mailpit** (SMTP :1025, UI http://localhost:8025)
@@ -79,8 +80,10 @@ docs/
     custom templates, overdue-task reminders. Don't build them.
 
 ## Decisions filling gaps in the spec
-- One RSVP deadline per wedding: `Wedding.rsvpDeadline` (Assumption 10.1). Invitation is
-  expired when `now > wedding.rsvpDeadline`.
+- One RSVP deadline per wedding: `Wedding.rsvpDeadline` (Assumption 10.1), a calendar date
+  (`@db.Date`, `"YYYY-MM-DD"` in the API). RSVPs are accepted through the whole deadline day;
+  an invitation is expired once today's UTC date is after `rsvpDeadline`.
+- Archived weddings are read-only (409), except the owner may still revoke team members.
 - Team members can read all of a wedding's data except collaborator management (owner only).
   Revisit if the team decides "permitted information" should be narrower (FR-14).
 - Reminder config: one in-app + one email reminder `REMINDER_DAYS_BEFORE` (default 3) days
@@ -98,3 +101,6 @@ docs/
 - **Never commit.** No `git add`, `commit`, `reset`, `stash`, `push` or other state-changing
   git commands — the user commits manually. At the end of a step, suggest a commit message
   referencing FR/AC IDs instead. Read-only git (`status`, `diff`, `log`) is fine.
+- **No AI attribution in commits or PRs.** Suggested (or, when explicitly asked, actual) commit
+  messages and PR descriptions must NOT contain `Co-Authored-By: Claude …`, "Generated with
+  Claude Code" or similar lines — the user doesn't want Claude listed as a contributor.

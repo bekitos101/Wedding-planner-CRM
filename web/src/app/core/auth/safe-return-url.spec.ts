@@ -4,14 +4,14 @@ import { navigateToReturnUrl, safeReturnUrl } from './safe-return-url';
 
 describe('safeReturnUrl', () => {
   it('rejects protocol-relative and backslash URLs', () => {
-    expect(safeReturnUrl('//evil.example')).toBe('/');
-    expect(safeReturnUrl('/\\evil')).toBe('/');
+    expect(safeReturnUrl('//evil.example')).toBe('/weddings');
+    expect(safeReturnUrl('/\\evil')).toBe('/weddings');
   });
 
   it('rejects absolute and empty URLs', () => {
-    expect(safeReturnUrl('https://x')).toBe('/');
-    expect(safeReturnUrl('')).toBe('/');
-    expect(safeReturnUrl(null)).toBe('/');
+    expect(safeReturnUrl('https://x')).toBe('/weddings');
+    expect(safeReturnUrl('')).toBe('/weddings');
+    expect(safeReturnUrl(null)).toBe('/weddings');
   });
 
   it('accepts same-origin paths', () => {
@@ -21,7 +21,7 @@ describe('safeReturnUrl', () => {
 });
 
 describe('navigateToReturnUrl', () => {
-  it('falls back to / when navigation throws', async () => {
+  it('falls back to /weddings when navigation throws', async () => {
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
     const router = TestBed.inject(Router);
     const spy = vi
@@ -30,6 +30,6 @@ describe('navigateToReturnUrl', () => {
       .mockResolvedValue(true);
     await navigateToReturnUrl(router, '/profile');
     expect(spy).toHaveBeenNthCalledWith(1, '/profile');
-    expect(spy).toHaveBeenNthCalledWith(2, '/');
+    expect(spy).toHaveBeenNthCalledWith(2, '/weddings');
   });
 });

@@ -8,7 +8,7 @@ import {
   UrlTree,
   provideRouter,
 } from '@angular/router';
-import { authGuard, guestGuard } from './auth.guard';
+import { authGuard, guestGuard, landingGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 
 describe('guards', () => {
@@ -43,10 +43,20 @@ describe('guards', () => {
     expect(run(authGuard)).toBe(true);
   });
 
-  it('guestGuard redirects logged-in users to /', () => {
+  it('guestGuard redirects logged-in users to /weddings', () => {
     logIn();
     const result = run(guestGuard) as UrlTree;
-    expect(TestBed.inject(Router).serializeUrl(result)).toBe('/');
+    expect(TestBed.inject(Router).serializeUrl(result)).toBe('/weddings');
+  });
+
+  it('landingGuard redirects logged-in users to /weddings', () => {
+    logIn();
+    const result = run(landingGuard) as UrlTree;
+    expect(TestBed.inject(Router).serializeUrl(result)).toBe('/weddings');
+  });
+
+  it('landingGuard shows the landing page to anonymous visitors', () => {
+    expect(run(landingGuard)).toBe(true);
   });
 
   it('guestGuard allows anonymous users', () => {

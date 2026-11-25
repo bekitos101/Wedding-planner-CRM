@@ -1,0 +1,49 @@
+import type { Prisma, WeddingMember } from '@prisma/client';
+import { prisma } from '../lib/prisma.js';
+
+const withUser = { user: { select: { id: true, name: true, email: true } } } satisfies Prisma.WeddingMemberInclude;
+
+export type MemberWithUser = Prisma.WeddingMemberGetPayload<{ include: typeof withUser }>;
+
+export const memberRepository = {
+  find(weddingId: string, userId: string): Promise<WeddingMember | null> {
+    return prisma.weddingMember.findUnique({ where: { weddingId_userId: { weddingId, userId } } });
+  },
+
+  listByWedding(weddingId: string): Promise<MemberWithUser[]> {
+    return prisma.weddingMember.findMany({ where: { weddingId }, include: withUser });
+  },
+
+  create(weddingId: string, userId: string): Promise<MemberWithUser> {
+    return prisma.weddingMember.create({ data: { weddingId, userId }, include: withUser });
+  },
+
+  reactivate(weddingId: string, userId: string): Promise<MemberWithUser> {
+    return prisma.weddingMember.update({
+      where: { weddingId_userId: { weddingId, userId } },
+      data: { status: 'ACTIVE', revokedAt: null },
+      include: withUser,
+    });
+  },
+
+  /**
+   * One transaction: revoke the ACTIVE membership, cancel the user's PENDING notifications for
+   * tasks of this wedding, and unassign their tasks in this wedding. Nothing is deleted.
+   * Returns false when there was no active membership (nothing changed).
+   */
+  revokeAndCleanUp(weddingId: string, userId: string, now: Date): Promise<boolean> {
+    return prisma.$transaction(async (tx) => {
+      const revoked = await tx.weddingMember.updateMany({
+        where: { weddingId, userId, status: 'ACTIVE' },
+        data: { status: 'REVOKED', revokedAt: now },
+      });
+      if (revoked.count === 0) return false;
+      await tx.notification.updateMany({
+        where: { userId, status: 'PENDING', task: { weddingId } },
+        data: { status: 'CANCELLED' },
+      });
+      await tx.task.updateMany({ where: { weddingId, assigneeId: userId }, data: { assigneeId: null } });
+      return true;
+    });
+  },
+};

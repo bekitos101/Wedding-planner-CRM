@@ -4,10 +4,10 @@ import { Router } from '@angular/router';
 const SAFE_URL = /^\/(?![\/\\])/;
 
 export function safeReturnUrl(url: string | null | undefined): string {
-  return url && SAFE_URL.test(url) ? url : '/';
+  return url && SAFE_URL.test(url) ? url : '/weddings';
 }
 
-/** Navigates to the sanitised return URL; falls back to '/' if that navigation fails. */
+/** Navigates to the sanitised return URL; falls back to /weddings if that navigation fails. */
 export async function navigateToReturnUrl(
   router: Router,
   rawUrl: string | null | undefined,
@@ -15,8 +15,8 @@ export async function navigateToReturnUrl(
   const target = safeReturnUrl(rawUrl);
   try {
     const ok = await router.navigateByUrl(target);
-    if (!ok && target !== '/') await router.navigateByUrl('/');
+    if (!ok && target !== '/weddings') await router.navigateByUrl('/weddings');
   } catch {
-    await router.navigateByUrl('/');
+    await router.navigateByUrl('/weddings');
   }
 }
