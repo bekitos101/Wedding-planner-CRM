@@ -169,23 +169,7 @@ Run these inside `server/`:
 
 ---
 
-## 7. Troubleshooting
-
-| Problem | Fix |
-|---|---|
-| Browser shows **"Cannot GET /"** | You opened port 3000 (the API). Open **http://localhost:4200** instead |
-| Page doesn't load at :4200 | The web app isn't running. Run `npm start` in `web/` |
-| Red banner "Can't reach the server right now" | The API isn't running. Run `npm run dev` in `server/` |
-| `npm install` fails with **EBADENGINE** / unsupported engine | Your Node is older than 22. Check `node -v` and switch to Node 22 |
-| `Can't reach database server at localhost:5432` | Docker Desktop isn't running, or the containers are stopped. Start Docker, then `docker compose up -d` |
-| **Port already in use** (3000 or 4200) | An old server is still running. Close its terminal, or on Windows: `Stop-Process -Id (Get-NetTCPConnection -LocalPort 3000 -State Listen).OwningProcess` |
-| Prisma **EPERM** error on Windows during `migrate` / `generate` | A running API server locks Prisma's engine file. Stop `npm run dev`, run the command again, then restart |
-| Tests fail with "`.env.test` missing" | `Copy-Item .env.test.example .env.test` in `server/` |
-| Web tests: "Timeout waiting for worker" | The machine was busy. Run the tests again |
-
----
-
-## 8. Project structure
+## 7. Project structure
 
 ```
 docker-compose.yml        Postgres 16 + Mailpit for local development
@@ -214,7 +198,7 @@ Routes never access the database directly, and all permission checks happen on t
 
 ---
 
-## 9. Documentation
+## 8. Documentation
 
 - [docs/SPEC.md](docs/SPEC.md): requirements specification (Markdown copy; the PDF is authoritative)
 - [docs/API.md](docs/API.md): every endpoint, request/response shape and error code
