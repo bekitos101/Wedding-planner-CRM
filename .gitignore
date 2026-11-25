@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.angular/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+# Claude Code agents, skills and settings: kept local only, never committed
+.claude/
+
+# setup archive (already extracted)
+wedding-organizer-claude-setup.zip
