@@ -1,5 +1,6 @@
 import { Prisma, type MemberStatus, type TaskPriority, type TaskStatus, type WeddingStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
+import { reminderTx, type ReminderTx } from './notificationRepository.js';
 
 export const withAssignee = { assignee: { select: { id: true, name: true } } } satisfies Prisma.TaskInclude;
 
@@ -29,6 +30,8 @@ export type TaskUpdateData = Partial<Omit<NewTaskData, 'sourceTemplateItemId'>>;
 
 /** Data access inside ONE database transaction. No business rules here: the service decides. */
 export interface TaskTx {
+  /** Reminder writes in this same transaction (phase 5: FR-61/62, BR-09/10). */
+  reminders: ReminderTx;
   /** Locks the wedding row (FOR SHARE) so a concurrent archive waits for this transaction; returns its status (null = gone). */
   lockWeddingStatus(weddingId: string): Promise<WeddingStatus | null>;
   /**
@@ -48,6 +51,8 @@ export interface TaskTx {
 
 function makeTx(tx: Prisma.TransactionClient): TaskTx {
   const self: TaskTx = {
+    reminders: reminderTx(tx),
+
     async lockWeddingStatus(weddingId) {
       const rows = await tx.$queryRaw<{ status: WeddingStatus }[]>`
         SELECT "status"::text AS "status" FROM "Wedding" WHERE "id" = ${weddingId} FOR SHARE`;

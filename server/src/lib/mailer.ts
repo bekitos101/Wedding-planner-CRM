@@ -47,7 +47,7 @@ export function setMailTransportForTests(t: MailTransport | undefined): void {
 
 /**
  * Sends one email. NEVER throws (NFR-17): callers inspect the result and record SENT/FAILED.
- * Failures are logged with recipient and subject only, never the body.
+ * Failures are logged with the subject only (no recipient: personal data), never the body.
  *
  * Caller rules: escape any user-supplied data you put in `html`; never put tokens or links in
  * `subject` (subject and `to` are logged on failure, NFR-06) - keep them in the body.
@@ -65,7 +65,7 @@ export async function sendMail(message: MailMessage, log: Logger = defaultLogger
     return { ok: true, messageId: String(info?.messageId ?? '') };
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown mail error';
-    log.warn({ to: message.to, subject: message.subject, error }, 'Email delivery failed');
+    log.warn({ subject: message.subject, error }, 'Email delivery failed');
     return { ok: false, error };
   }
 }

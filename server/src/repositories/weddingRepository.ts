@@ -1,5 +1,6 @@
 import { Prisma, type WeddingStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
+import { reminderTx, type ReminderTx } from './notificationRepository.js';
 
 const withOwner = { owner: { select: { id: true, name: true } } } satisfies Prisma.WeddingInclude;
 
@@ -44,10 +45,17 @@ export const weddingRepository = {
     return r.count > 0;
   },
 
-  /** Archives only an ACTIVE wedding. False = it was already archived (or gone). */
-  async archiveIfActive(id: string, archivedAt: Date): Promise<boolean> {
-    const r = await prisma.wedding.updateMany({ where: { id, status: 'ACTIVE' }, data: { status: 'ARCHIVED', archivedAt } });
-    return r.count > 0;
+  /**
+   * Archives only an ACTIVE wedding. False = it was already archived (or gone). `inSameTx` runs in
+   * the archive's own transaction after the write (phase 5: cancel the wedding's PENDING reminders).
+   */
+  archiveIfActive(id: string, archivedAt: Date, inSameTx?: (reminders: ReminderTx) => Promise<void>): Promise<boolean> {
+    return prisma.$transaction(async (tx) => {
+      const r = await tx.wedding.updateMany({ where: { id, status: 'ACTIVE' }, data: { status: 'ARCHIVED', archivedAt } });
+      if (r.count === 0) return false;
+      if (inSameTx) await inSameTx(reminderTx(tx));
+      return true;
+    });
   },
 
   /** Weddings owned by the user or where the user is an ACTIVE member, sorted by wedding date. */

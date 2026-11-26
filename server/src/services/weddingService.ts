@@ -1,6 +1,7 @@
 import type { WeddingStatus } from '@prisma/client';
 import { conflict, notFound, validationError } from '../lib/errors.js';
 import { weddingRepository, type WeddingFields, type WeddingWithOwner } from '../repositories/weddingRepository.js';
+import { reminderService } from './reminderService.js';
 import { toProgress, toWeddingDto, type WeddingDto, type WeddingRole } from './weddingDto.js';
 
 export interface WeddingAccess {
@@ -72,11 +73,14 @@ export const weddingService = {
 
   /** Idempotent: archiving an archived wedding returns it unchanged (200). */
   async archive(weddingId: string, userId: string): Promise<WeddingDto> {
-    // TODO(phase 5): cancel PENDING notifications on archive (BR-13, FR-62)
     const existing = await weddingRepository.findById(weddingId);
     if (!existing) throw notFound('Wedding not found.');
     if (existing.status === 'ACTIVE') {
-      await weddingRepository.archiveIfActive(weddingId, new Date()); // false = a concurrent archive won: fine
+      // BR-13, FR-62: the wedding's PENDING reminders are cancelled in the same transaction.
+      // false = a concurrent archive won: fine.
+      await weddingRepository.archiveIfActive(weddingId, new Date(), (reminders) =>
+        reminderService.cancelForWedding(reminders, weddingId).then(() => undefined),
+      );
     }
     const w = await weddingRepository.findById(weddingId);
     if (!w) throw notFound('Wedding not found.');

@@ -223,7 +223,7 @@ Rules:
   `dueDate` = weddingDate − `daysBeforeWedding`, but never earlier than today; priority and
   description copied; unassigned; status TODO; `sourceTemplateItemId` set. The template is never
   modified. Applying the same template twice creates a second set (allowed). Unknown template → 404.
-- Reminders/notifications are **not** created in this phase (phase 5).
+- Every task write (create, update, delete, template apply) keeps the task's reminders in sync in the same transaction; see "Notifications and scheduled reminders (phase 5)".
 
 ## Budget (track 3C)
 | Method | Path | Roles | Notes |
@@ -349,8 +349,77 @@ decision in CLAUDE.md). Target: < 2 s with 200 guests (NFR-20) — no per-row qu
 - `shareOfCommitted` = floor(category committed / total committed × 100); 0 when nothing is
   committed. Money fields are 2-decimal strings computed with Decimal.
 
-## Notifications (phase 5)
+## Notifications and scheduled reminders (phase 5)
 | Method | Path | Roles | Notes |
 |---|---|---|---|
-| GET | /notifications?unread=true | auth | caller's IN_APP notifications |
-| POST | /notifications/:id/read | auth | own only |
+| GET | /notifications?unread=true | auth | → `Notification[]`, newest first, max 50 |
+| GET | /notifications/unread-count | auth | → `{ count }` (the header bell polls this) |
+| POST | /notifications/:id/read | auth | → 200 `Notification` (idempotent; someone else's or unknown id → 404) |
+| POST | /notifications/read-all | auth | → 204 |
+
+**`Notification`** = `{ id, type: "TASK_DEADLINE_REMINDER", title, message, link, createdAt, readAt, task: { id, title, dueDate, status }, wedding: { id, coupleNames } }`
+- Only the caller's **IN_APP** notifications that have been **delivered** (status SENT) are listed,
+  and only for weddings the caller can still access (owner or ACTIVE member) — a revoked member's
+  old notifications disappear. `createdAt` = delivery time (`sentAt`).
+- `title`/`message` are built at read time from the current task, e.g. title "Task due in 3 days",
+  message `"Book the venue" is due on 19 Jun 2027 — Emma & Daniel.` A COMPLETED task reads title "Task completed"; a passed deadline "Task deadline passed". `link` =
+  `/weddings/<weddingId>/tasks` (a frontend path).
+
+**Reminder rules** (FR-61/62/63, BR-09/10/13, CLAUDE.md "Reminder config"):
+- Each eligible task has exactly **two** reminders: one `IN_APP` and one `EMAIL`, for the
+  **recipient** = assignee, or the wedding owner when unassigned.
+- `scheduledAt` = (dueDate − `REMINDER_DAYS_BEFORE` days) at **07:00 UTC** (09:00 in Budapest in
+  summer). "Today" and every eligibility/date check use the **UTC** calendar date. If that moment has already passed but the task isn't due yet (due today or later), the
+  reminder is scheduled for **now** (sent on the next job run). A task whose dueDate is before today
+  gets **no** reminder (FR-63: no overdue reminders).
+- **Eligible** = status ≠ COMPLETED, wedding ACTIVE, dueDate ≥ today.
+- `reminderService.syncTask(tx, taskId)` makes the stored reminders match the task, **inside the
+  task's write transaction**: PENDING **and FAILED** rows that no longer match (other recipient, other
+  scheduledAt, task no longer eligible) → `CANCELLED` (so a failed email is never retried for an old date); the wanted rows are upserted on the unique
+  key (taskId, userId, type, channel, scheduledAt): a missing row is created PENDING, a CANCELLED
+  row is reset to PENDING (attemptCount 0, sentAt/lastError null), a SENT/FAILED row is **left
+  alone** (never re-send something already delivered). Called on task create, update (reschedule,
+  reassign, complete, reopen), template apply; on revoke (the member's tasks become unassigned →
+  reminders move to the owner); deleting a task deletes its reminders (FK cascade).
+- **Late reminders are stable:** when the 07:00 moment has passed, an existing reminder for the same
+  (task, recipient, channel) scheduled between that moment and now (any status, incl. CANCELLED →
+  revived) is reused instead of creating another one, so re-syncing (restart backfill, editing an
+  unrelated field) never re-sends. Syncs of one task are serialised with a row lock.
+- The reminder job also re-checks the recipient (must still be assignee-or-owner) and that the
+  deadline has not passed (FR-63); stale rows are CANCELLED instead of sent.
+- **Archive** cancels every PENDING reminder of the wedding (BR-13) and no new ones are created.
+- **Backfill:** `syncAllReminders()` runs once at server start (and from the seed) so tasks created
+  before phase 5 get their reminders. Idempotent.
+
+**Jobs** (node-cron inside the API process; only when `CRON_ENABLED=true`; each job is a plain
+exported function `run…(now)` that tests call directly; a run is skipped if the previous run of the
+same job is still going):
+- **Reminder job — every minute** (FR-61, NFR-15/16): claims due PENDING reminders
+  (`scheduledAt ≤ now`) with a short **lease** transaction (`UPDATE … SET claimedAt … WHERE id IN (SELECT …
+  FOR UPDATE SKIP LOCKED LIMIT 50)`; a lease older than 10 minutes counts as abandoned), then sends
+  **outside any transaction** and records each result with a compare-and-set (status, claimedAt,
+  attemptCount; clears the lease). If the row was cancelled or re-claimed meanwhile, nothing is
+  written (only a count is logged). Before sending it re-checks eligibility (task not completed,
+  wedding active, deadline not passed, recipient still assignee-or-owner, and the row still belongs to
+  the task's current deadline — otherwise CANCELLED):
+  `IN_APP` → status SENT, sentAt now (it now shows in the bell);
+  `EMAIL` → sends via `lib/mailer.ts` to the recipient (subject `Reminder: "<task title>" is due on
+  <date>`, text + escaped HTML, link `APP_BASE_URL/weddings/<id>/tasks`), attemptCount + 1, SENT or
+  FAILED + friendly `lastError`.
+- **Retry job — every 10 minutes** (FR-64, BR-11, NFR-15/17): retries FAILED items with
+  `attemptCount < 3`:
+  reminder EMAILs (same lease claim and re-checks; stale ones CANCELLED) and **invitation** emails
+  (guest still exists, not revoked, RSVP still open, wedding active). An invitation retry **rotates the
+  token** (the old link was never delivered) and increments `attemptCount`; it is a compare-and-set on
+  the attempt count and token hash, so it backs off if the planner resent in the meantime. After the
+  3rd failure the item stays FAILED and is visible to the planner (guest list "Failed" + manual
+  Resend). A **manual Resend resets the invitation's attempt counter to 1**, so the retry job picks it
+  up again.
+- **Delivery is at least once.** Normal reruns and concurrent runs never duplicate an email, but a
+  crash between sending and recording, or a lease expiry, can re-send one email. A task change that
+  cancels a reminder while its email is already in flight cannot recall that one email.
+- **Single process:** the app assumes ONE API process runs the jobs (`CRON_ENABLED=true` on one
+  instance only). On shutdown the process stops scheduling and waits up to 10 s for a running job.
+- Email failures never throw out of a job, never stop the batch, never touch task/guest data
+  (NFR-17). Job logs contain ids and counts only; a failed send also logs the email subject (a task title) and the
+  error, never the recipient address, tokens, links or email bodies (NFR-06).

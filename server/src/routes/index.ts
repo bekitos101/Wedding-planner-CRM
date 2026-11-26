@@ -8,6 +8,7 @@ import { checklistTemplatesRouter, tasksRouter } from './tasks.js';
 import { healthRouter } from './health.js';
 import { meRouter } from './me.js';
 import { membersRouter } from './members.js';
+import { notificationsRouter } from './notifications.js';
 import { weddingScoped } from './weddingScoped.js';
 import { weddingsRouter } from './weddings.js';
 
@@ -32,5 +33,6 @@ weddingScoped.use(budgetRouter); // 3C: /expenses, /expenses/:expenseId/payments
 weddingScoped.use(planningRouter); // 3D: /suppliers, /schedule
 // Phase 4: read-only dashboard + reports, at the root of weddingScoped (guard already ran).
 weddingScoped.use(dashboardRouter); // /dashboard, /reports/guests, /reports/budget
+apiRouter.use('/notifications', notificationsRouter); // phase 5: caller's in-app notifications (login required)
 apiRouter.use(rsvpRouter); // 3A public: /rsvp/:token (no login)
 apiRouter.use(checklistTemplatesRouter); // 3B: /checklist-templates (login required)

@@ -11,6 +11,7 @@ import {
   type TaskUpdateData,
 } from '../repositories/taskRepository.js';
 import type { WeddingRole } from './weddingDto.js';
+import { reminderService } from './reminderService.js';
 import { ARCHIVED_MESSAGE } from './weddingService.js';
 
 export const MEMBER_TASK_FIELDS: readonly string[] = ['status', 'progressNotes'];
@@ -38,16 +39,16 @@ export function toTaskDto(t: TaskRow, today: Date = todayUtc()) {
 export type TaskDto = ReturnType<typeof toTaskDto>;
 
 /**
- * PHASE 5 HOOK POINT (FR-61/62, BR-09/10/13): every task write in the app goes through the two
- * functions below, inside the same transaction as the write. Phase 5 upserts or cancels the
- * PENDING reminders here (create/reschedule/complete/reassign -> onTaskSaved, delete -> onTaskDeleted).
- * `previous` is the row before the update (null for a newly created task).
+ * Reminder hook points (FR-61/62, BR-09/10/13): every task write in the app goes through the two
+ * functions below, inside the same transaction as the write. create/reschedule/complete/reopen/
+ * reassign -> syncTask makes the stored reminders match the task. `previous` is the row before the
+ * update (null for a newly created task); syncTask works from the stored state, so it isn't needed.
  */
-async function onTaskSaved(_tx: TaskTx, _task: TaskRow, _previous: TaskRow | null): Promise<void> {
-  // TODO(phase 5): upsert/cancel reminders for this task.
+async function onTaskSaved(tx: TaskTx, task: TaskRow, _previous: TaskRow | null): Promise<void> {
+  await reminderService.syncTask(tx.reminders, task.id);
 }
 async function onTaskDeleted(_tx: TaskTx, _task: TaskRow): Promise<void> {
-  // TODO(phase 5): cancel PENDING reminders for this task.
+  // Reminders of a deleted task go with it (Notification.task onDelete: Cascade).
 }
 
 export interface TaskContext {

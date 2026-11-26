@@ -22,6 +22,18 @@ const rsvpInclude = {
   },
 } satisfies Prisma.InvitationInclude;
 
+const retryInclude = {
+  guest: {
+    select: {
+      name: true,
+      email: true,
+      wedding: { select: { coupleNames: true, weddingDate: true, location: true, rsvpDeadline: true } },
+    },
+  },
+} satisfies Prisma.InvitationInclude;
+
+export type RetryCandidate = Prisma.InvitationGetPayload<{ include: typeof retryInclude }>;
+
 export type InvitationWithContext = Prisma.InvitationGetPayload<{ include: typeof rsvpInclude }>;
 
 export const invitationRepository = {
@@ -64,6 +76,39 @@ export const invitationRepository = {
     if (!inv) return false;
     if (!inv.revokedAt) await prisma.invitation.updateMany({ where: { guestId, revokedAt: null }, data: { revokedAt: now } });
     return true;
+  },
+
+  /**
+   * FAILED invitations the retry job may try again (FR-64, BR-11): below the attempt limit, not
+   * revoked, guest still exists (FK), wedding ACTIVE and the RSVP still open on `today`.
+   */
+  listRetryCandidates(today: Date, maxAttempts: number, excludeIds: string[], limit: number): Promise<RetryCandidate[]> {
+    return prisma.invitation.findMany({
+      where: {
+        deliveryStatus: 'FAILED',
+        attemptCount: { lt: maxAttempts },
+        revokedAt: null,
+        id: { notIn: excludeIds },
+        guest: { wedding: { status: 'ACTIVE', rsvpDeadline: { gte: today } } },
+      },
+      include: retryInclude,
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
+      take: limit,
+    });
+  },
+
+  /**
+   * Claims a retry with one compare-and-set write: rotates the token and increments attemptCount,
+   * but only while the invitation is still FAILED, unrevoked, with the attempt count AND token hash we saw
+   * (a manual resend in between changes the token, so the retry backs off). Of two
+   * concurrent runs (or a run and a manual resend) exactly one wins. False = lost the race.
+   */
+  async rotateForRetry(id: string, seenAttempts: number, seenTokenHash: string, tokenHash: string): Promise<boolean> {
+    const r = await prisma.invitation.updateMany({
+      where: { id, deliveryStatus: 'FAILED', attemptCount: seenAttempts, tokenHash: seenTokenHash, revokedAt: null },
+      data: { tokenHash, attemptCount: seenAttempts + 1 },
+    });
+    return r.count > 0;
   },
 
   findByTokenHash(tokenHash: string): Promise<InvitationWithContext | null> {

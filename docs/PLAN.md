@@ -104,13 +104,13 @@ each track owns its own route/service/repository/test files and its own web feat
   (rescheduling back to an earlier date hits a CANCELLED row) (NFR-16, BR-10, AC-13).
 
 ## Phase 5 — Notifications and scheduler (FR-61..64, BR-09/10/11/13, NFR-15/16/17)
-- [ ] On task create/update: upsert pending IN_APP + EMAIL reminders at
+- [x] On task create/update: upsert pending IN_APP + EMAIL reminders at
       `dueDate - REMINDER_DAYS_BEFORE`; cancel on complete/delete/archive; reschedule moves them
-- [ ] Cron every minute: send due EMAIL reminders (skip archived weddings); mark SENT/FAILED
-- [ ] Cron every 10 min: retry FAILED invitation/reminder emails with attemptCount < 3
-- [ ] In-app notification list + mark read
-- [ ] Tests: AC-12, AC-13, NFR-16 (run job twice → no duplicates), BR-13
-- [ ] Web: notification bell + list
+- [x] Cron every minute: send due EMAIL reminders (skip archived weddings); mark SENT/FAILED
+- [x] Cron every 10 min: retry FAILED invitation/reminder emails with attemptCount < 3
+- [x] In-app notification list + mark read
+- [x] Tests: AC-12, AC-13, NFR-16 (run job twice → no duplicates), BR-13
+- [x] Web: notification bell + list
 
 ## Phase 6 — Hardening and demo
 - [ ] Full acceptance pass AC-01..AC-15 (tester agent)

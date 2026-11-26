@@ -276,6 +276,7 @@ model Notification {
   status       NotificationStatus  @default(PENDING)
   sentAt       DateTime?
   readAt       DateTime?
+  claimedAt    DateTime? // job lease: set when a job claims the row, cleared when the result is recorded
   attemptCount Int                 @default(0)
   lastError    String?
   createdAt    DateTime            @default(now())

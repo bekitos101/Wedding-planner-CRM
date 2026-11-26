@@ -1,7 +1,7 @@
 import { Router } from '@angular/router';
 
 /** Only same-origin absolute paths are allowed: starts with "/" but not "//" or "/\". */
-const SAFE_URL = /^\/(?![\/\\])/;
+export const SAFE_URL = /^\/(?![\/\\])/;
 
 export function safeReturnUrl(url: string | null | undefined): string {
   return url && SAFE_URL.test(url) ? url : '/weddings';

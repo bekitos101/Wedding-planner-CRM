@@ -138,7 +138,10 @@ describe('collaborators', () => {
     expect(await status(otherPending.id)).toBe('PENDING');
     // nothing deleted
     expect(await prisma.task.count({ where: { weddingId: wedding.id } })).toBe(1);
-    expect(await prisma.notification.count({ where: { taskId: mine.id } })).toBe(3);
+    expect(await prisma.notification.count({ where: { taskId: mine.id, userId: member.id } })).toBe(3);
+    // phase 5: the unassigned (still upcoming) task now carries the owner's reminders instead
+    const ownerRows = await prisma.notification.findMany({ where: { taskId: mine.id, userId: owner.id } });
+    expect(ownerRows.map((r) => r.status)).toEqual(['PENDING', 'PENDING']);
     expect(await prisma.weddingMember.count({ where: { weddingId: wedding.id } })).toBe(1);
     expect(await prisma.wedding.count({ where: { id: wedding.id } })).toBe(1);
   });

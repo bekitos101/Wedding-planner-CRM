@@ -5,6 +5,8 @@ import { seedDemo } from './seeds/demo.js';
 import { seedGuests } from './seeds/guests.js';
 import { seedPlanning } from './seeds/planning.js';
 import { seedTasks } from './seeds/tasks.js';
+import { prisma as appPrisma } from '../src/lib/prisma.js';
+import { reminderService } from '../src/services/reminderService.js';
 
 const prisma = new PrismaClient();
 
@@ -169,6 +171,18 @@ async function main() {
   await seedPlanning(ctx);
   const demo = await seedDemo(ctx);
 
+  // Phase 5: reminders for the demo tasks (same code path as the server's startup backfill). Idempotent.
+  const reminderTasks = await reminderService.syncAllReminders();
+  // Demo only: give the bell some history. IN_APP reminders that are already due count as delivered
+  // at their scheduled time; EMAIL reminders stay PENDING for the reminder job to send. Only done when
+  // NODE_ENV=development (the default in .env). A re-run finds nothing PENDING and due, so counts don't change.
+  let demoDelivered = 0;
+  if (process.env.NODE_ENV === 'development') {
+    demoDelivered = await prisma.$executeRaw`UPDATE "Notification" SET "status" = 'SENT', "sentAt" = "scheduledAt"
+      WHERE "channel" = 'IN_APP' AND "status" = 'PENDING' AND "scheduledAt" <= now()`;
+  }
+  console.log(`Reminders synced for ${reminderTasks} tasks; ${demoDelivered} demo in-app notifications marked delivered.`);
+
   console.log('Seed complete: 5 users, 4 weddings (1 archived), memberships, 2 checklist templates, demo data.');
   if (demo.rsvpUrls.length > 0) {
     console.log('\nDemo RSVP links (demo-only, not created in production):');
@@ -181,4 +195,7 @@ main()
     console.error(e);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+    await appPrisma.$disconnect();
+  });

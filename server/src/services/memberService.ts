@@ -1,6 +1,7 @@
 import { conflict, notFound, validationError } from '../lib/errors.js';
 import { memberRepository, type MemberWithUser } from '../repositories/memberRepository.js';
 import { userRepository } from '../repositories/userRepository.js';
+import { reminderService } from './reminderService.js';
 
 const ALREADY_MEMBER = 'This person is already a team member.';
 
@@ -51,7 +52,10 @@ export const memberService = {
   },
 
   async revoke(weddingId: string, userId: string): Promise<void> {
-    const done = await memberRepository.revokeAndCleanUp(weddingId, userId, new Date());
+    // The member's tasks become unassigned, so their reminders move to the owner (same transaction).
+    const done = await memberRepository.revokeAndCleanUp(weddingId, userId, new Date(), async (reminders, taskIds) => {
+      for (const id of taskIds) await reminderService.syncTask(reminders, id);
+    });
     if (!done) throw notFound('Team member not found.');
   },
 };

@@ -33,3 +33,11 @@ export function todayUtc(now: Date = new Date()): Date {
 export function isRsvpOpen(deadline: Date, now: Date = new Date()): boolean {
   return todayUtc(now).getTime() <= todayUtc(deadline).getTime();
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** Date -> "19 Jun 2027" (UTC calendar day), the human form used in emails and notifications. */
+export const formatHumanDate = (d: Date): string => `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+
+/** Whole days from `from` to `to` (both UTC-midnight dates); negative when `to` is earlier. */
+export const daysBetween = (from: Date, to: Date): number => Math.round((to.getTime() - from.getTime()) / 86_400_000);
