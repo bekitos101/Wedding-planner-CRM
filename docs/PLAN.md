@@ -93,7 +93,7 @@ each track owns its own route/service/repository/test files and its own web feat
   route-enumeration test fails otherwise. 3B: check "assignee is an active member" inside the same
   transaction as the task write, so it can't race with a revoke. 3A: RSVP expiry uses the
   date-only rule in CLAUDE.md.
-- Phase 6 (from the Phase 3 review): the archived check for guests/budget/suppliers/schedule writes
+- **Done in Phase 6:** the archived check for guests/budget/suppliers/schedule writes
   runs in middleware only (not in the write transaction, unlike tasks), so a write racing an archive
   can still land. Low impact; consider a shared `assertWeddingActive(tx, weddingId)` with FOR SHARE.
 - Phase 5 (from the Phase 2 review): archiving must cancel PENDING notifications (BR-13, FR-62);
@@ -113,9 +113,9 @@ each track owns its own route/service/repository/test files and its own web feat
 - [x] Web: notification bell + list
 
 ## Phase 6 — Hardening and demo
-- [ ] Full acceptance pass AC-01..AC-15 (tester agent)
-- [ ] Security review against NFR-01..08 (reviewer agent)
-- [ ] Dashboard timing with seeded representative data (e.g. 5 weddings × 200 guests) (NFR-20)
-- [ ] README install guide: prerequisites, env vars, docker compose, migrate, seed, start,
+- [x] Full acceptance pass AC-01..AC-15 (tester agent)
+- [x] Security review against NFR-01..08 (reviewer agent)
+- [x] Dashboard timing with seeded representative data (e.g. 5 weddings × 200 guests) (NFR-20) — median 50 ms, p95 66 ms, see docs/PERFORMANCE.md
+- [x] README install guide: prerequisites, env vars, docker compose, migrate, seed, start,
       Mailpit URL, demo accounts (NFR-25, AC-15)
-- [ ] Restart test: stop everything, start again, data still there (AC-14)
+- [x] Restart test: stop everything, start again, data still there (AC-14) — verified 2026-11-26: identical data after `docker compose down` + `up`

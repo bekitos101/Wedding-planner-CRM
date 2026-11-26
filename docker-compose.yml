@@ -1,4 +1,6 @@
 # Local services for the Wedding Organizer.
+# DEVELOPMENT ONLY: the credentials below are public. Ports are bound to 127.0.0.1 so other
+# machines on the network cannot reach the database or the Mailpit inbox.
 #   docker compose up -d      start (data persists in the pgdata volume, AC-14)
 #   docker compose down       stop, keep data
 #   docker compose down -v    stop and DELETE all data
@@ -11,7 +13,7 @@ services:
       POSTGRES_PASSWORD: wedding
       POSTGRES_DB: wedding_organizer
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"   # localhost only (dev-only credentials)
     volumes:
       - pgdata:/var/lib/postgresql/data
       # Creates the separate test database on first start.
@@ -26,8 +28,8 @@ services:
     image: axllent/mailpit:v1.27
     restart: unless-stopped
     ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # web UI: http://localhost:8025
+      - "127.0.0.1:1025:1025"   # SMTP, localhost only
+      - "127.0.0.1:8025:8025"   # web UI: http://localhost:8025 (holds RSVP links: keep it local)
     environment:
       MP_SMTP_AUTH_ACCEPT_ANY: "1"
       MP_SMTP_AUTH_ALLOW_INSECURE: "1"

@@ -2,6 +2,7 @@ import type { Prisma, Supplier } from '@prisma/client';
 import { notFound } from '../lib/errors.js';
 import { formatMoney } from '../lib/schemas.js';
 import { supplierRepository } from '../repositories/supplierRepository.js';
+import { inActiveWedding } from './weddingGuard.js';
 
 export function toSupplierDto(s: Supplier) {
   return {
@@ -32,16 +33,16 @@ export const supplierService = {
   },
 
   async create(weddingId: string, input: SupplierInput): Promise<SupplierDto> {
-    return toSupplierDto(await supplierRepository.create(weddingId, input));
+    return toSupplierDto(await inActiveWedding(weddingId, (tx) => supplierRepository.create(weddingId, input, tx)));
   },
 
   async update(weddingId: string, id: string, patch: Partial<SupplierInput>): Promise<SupplierDto> {
-    const row = await supplierRepository.update(weddingId, id, patch);
+    const row = await inActiveWedding(weddingId, (tx) => supplierRepository.update(weddingId, id, patch, tx));
     if (!row) throw notFound(NOT_FOUND);
     return toSupplierDto(row);
   },
 
   async remove(weddingId: string, id: string): Promise<void> {
-    if (!(await supplierRepository.delete(weddingId, id))) throw notFound(NOT_FOUND);
+    if (!(await inActiveWedding(weddingId, (tx) => supplierRepository.delete(weddingId, id, tx)))) throw notFound(NOT_FOUND);
   },
 };

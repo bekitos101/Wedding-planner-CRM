@@ -1,6 +1,8 @@
 import type { RsvpStatus } from '@prisma/client';
 import { notFound } from '../lib/errors.js';
 import { guestRepository, type GuestCreate, type GuestRow, type GuestUpdate } from '../repositories/guestRepository.js';
+import type { Tx } from '../repositories/weddingRepository.js';
+import { inActiveWedding } from './weddingGuard.js';
 
 export interface GuestDto {
   id: string;
@@ -78,28 +80,17 @@ export const guestService = {
   },
 
   async create(weddingId: string, input: GuestCreate): Promise<GuestDto> {
-    return toGuestDto(await guestRepository.create(weddingId, input));
+    // BR-13: the active check runs inside the write transaction (races with archive).
+    return toGuestDto(await inActiveWedding(weddingId, (tx) => guestRepository.create(weddingId, input, tx)));
   },
 
   async update(weddingId: string, guestId: string, patch: GuestPatch): Promise<GuestDto> {
-    const existing = await guestRepository.find(weddingId, guestId);
-    if (!existing) throw guestNotFound();
-    const data: GuestUpdate = {};
-    if (patch.name !== undefined) data.name = patch.name;
-    if (patch.email !== undefined) data.email = patch.email;
-    if (patch.dietaryRequirements !== undefined) data.dietaryRequirements = patch.dietaryRequirements;
-    if (patch.rsvpStatus !== undefined) {
-      data.rsvpStatus = patch.rsvpStatus;
-      if (patch.rsvpStatus === 'PENDING') data.respondedAt = null;
-      else if (patch.rsvpStatus !== existing.rsvpStatus || !existing.respondedAt) data.respondedAt = new Date();
-    }
-    const updated = await guestRepository.update(weddingId, guestId, data);
-    if (!updated) throw guestNotFound();
-    return toGuestDto(updated);
+    return inActiveWedding(weddingId, (tx) => updateGuest(tx, weddingId, guestId, patch));
   },
 
   async remove(weddingId: string, guestId: string): Promise<void> {
-    if (!(await guestRepository.delete(weddingId, guestId))) throw guestNotFound();
+    const removed = await inActiveWedding(weddingId, (tx) => guestRepository.delete(weddingId, guestId, tx));
+    if (!removed) throw guestNotFound();
   },
 
   /** Used by the invitation service: the guest as the planner sees it, or 404. */
@@ -109,3 +100,20 @@ export const guestService = {
     return g;
   },
 };
+
+async function updateGuest(tx: Tx, weddingId: string, guestId: string, patch: GuestPatch): Promise<GuestDto> {
+  const existing = await guestRepository.find(weddingId, guestId, tx);
+  if (!existing) throw guestNotFound();
+  const data: GuestUpdate = {};
+  if (patch.name !== undefined) data.name = patch.name;
+  if (patch.email !== undefined) data.email = patch.email;
+  if (patch.dietaryRequirements !== undefined) data.dietaryRequirements = patch.dietaryRequirements;
+  if (patch.rsvpStatus !== undefined) {
+    data.rsvpStatus = patch.rsvpStatus;
+    if (patch.rsvpStatus === 'PENDING') data.respondedAt = null;
+    else if (patch.rsvpStatus !== existing.rsvpStatus || !existing.respondedAt) data.respondedAt = new Date();
+  }
+  const updated = await guestRepository.update(weddingId, guestId, data, tx);
+  if (!updated) throw guestNotFound();
+  return toGuestDto(updated);
+}

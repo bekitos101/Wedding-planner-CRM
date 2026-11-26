@@ -25,17 +25,27 @@ const schema = z.object({
   CRON_ENABLED: boolish,
 });
 
-const PLACEHOLDER_SECRET = 'change-me-change-me-change-me-change-me';
+const WEAK_SECRET_MARKERS = ['change-me', 'test-secret'];
 
-const parsed = schema
-  .refine((e) => !(e.NODE_ENV === 'production' && e.JWT_SECRET === PLACEHOLDER_SECRET), {
+const checked = schema
+  .refine((e) => !(e.NODE_ENV === 'production' && WEAK_SECRET_MARKERS.some((m) => e.JWT_SECRET.toLowerCase().includes(m))), {
     path: ['JWT_SECRET'],
-    message: 'JWT_SECRET must not be the placeholder from .env.example in production',
+    message: 'JWT_SECRET must not be a placeholder from .env.example / .env.test.example in production',
   })
-  .safeParse(process.env);
+  .refine((e) => !(e.NODE_ENV === 'production' && new URL(e.APP_BASE_URL).protocol !== 'https:'), {
+    path: ['APP_BASE_URL'],
+    message: 'APP_BASE_URL must use https: in production (NFR-07)',
+  });
+
+/** Pure parser (unit-tested): validates a raw environment object. */
+export function parseEnv(source: Record<string, string | undefined>) {
+  return checked.safeParse(source);
+}
+
+const parsed = parseEnv(process.env);
 if (!parsed.success) {
   const lines = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`);
-  console.error(`Invalid environment configuration:\n${lines.join('\n')}\nSee server/.env.example.`);
+  console.error(['Invalid environment configuration:', ...lines, 'See server/.env.example.'].join(String.fromCharCode(10)));
   process.exit(1);
 }
 

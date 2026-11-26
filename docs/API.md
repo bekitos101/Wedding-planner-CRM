@@ -15,12 +15,12 @@ Auth: JWT in an httpOnly cookie `token` (web) or `Authorization: Bearer` (tests)
 | 400 | VALIDATION_ERROR | zod failure or malformed JSON; `fields` filled for zod |
 | 400 | BAD_REQUEST | other client errors from the HTTP layer |
 | 401 | UNAUTHENTICATED | no/invalid JWT |
-| 403 | FORBIDDEN | member of the wedding but lacks permission (incl. disallowed task fields); wrong `currentPassword` on PATCH /me |
+| 403 | FORBIDDEN | member of the wedding but lacks permission (incl. disallowed task fields); wrong `currentPassword` on PATCH /me; cross-site state-changing request ("Cross-site request blocked.") |
 | 404 | NOT_FOUND | missing, or wedding not accessible to this user (BR-14) |
-| 409 | CONFLICT | duplicate membership, email already registered |
+| 409 | CONFLICT | duplicate membership, email already registered, write on an archived wedding, unique-constraint violation ("This record already exists.") |
 | 410 | RSVP_CLOSED | RSVP deadline passed or invitation revoked |
 | 413 | PAYLOAD_TOO_LARGE | request body over 100 kB |
-| 429 | TOO_MANY_REQUESTS | rate limit hit (contact form) |
+| 429 | TOO_MANY_REQUESTS | rate limit hit: contact form, login, register, password change (see below) |
 | 503 | SERVICE_UNAVAILABLE | a dependency (e.g. email) is down and the request couldn't be completed |
 | 500 | INTERNAL_ERROR | unexpected error; generic message, details only in server logs |
 
@@ -74,6 +74,25 @@ Rules:
   `SameSite=Lax`, `Secure` in production, path `/`, max-age 7 days. `Authorization: Bearer`
   accepted too. Missing/invalid/expired token or deleted user → 401 `UNAUTHENTICATED`.
 - Logout is stateless (clears the cookie); no server-side token blacklist in v1.
+- **Brute-force protection (NFR-01/02)** → **429** `TOO_MANY_REQUESTS` "Too many attempts. Please try again later."
+  (in memory per server process, fixed windows, every attempt counts, a successful login does NOT reset the counter):
+  `POST /auth/login` 10 attempts per 15 min per IP + lowercased email, and 50 per 15 min per IP;
+  `POST /auth/register` 10 per hour per IP; `PATCH /me` requests that try to change the `password`
+  (the `currentPassword` check) 10 per 15 min per user. Other `PATCH /me` edits are not counted.
+  The client IP follows the `TRUST_PROXY` rule described under the contact form.
+
+## Cross-cutting HTTP behaviour
+- **Security headers** on every response: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `Referrer-Policy: no-referrer`,
+  `Cache-Control: no-store`; plus `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+  when `NODE_ENV=production` (NFR-07).
+- **CSRF defence in depth:** a POST/PUT/PATCH/DELETE under `/api` is rejected with **403** `FORBIDDEN`
+  "Cross-site request blocked." when `Sec-Fetch-Site: cross-site`, or when an `Origin` header is present
+  that is neither the `APP_BASE_URL` origin nor the origin the request was addressed to (`Host`).
+  Requests without `Origin` (curl, tests) are unaffected.
+- **Archived wedding writes are race-safe:** creates/updates/deletes of guests, invitations, expenses,
+  payments, suppliers and schedule items re-check "wedding is active" inside the write transaction
+  (row lock), so a write racing an archive either completes before it or gets 409.
 
 ## Weddings and collaborators
 | Method | Path | Roles | Notes |

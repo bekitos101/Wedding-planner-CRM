@@ -87,12 +87,12 @@ export const expenseRepository = {
     return prisma.expense.findFirst({ where: { id: expenseId, weddingId } });
   },
 
-  create(weddingId: string, data: ExpenseFields): Promise<Expense> {
-    return prisma.expense.create({ data: { weddingId, ...data } });
+  create(weddingId: string, data: ExpenseFields, db: Prisma.TransactionClient | typeof prisma = prisma): Promise<Expense> {
+    return db.expense.create({ data: { weddingId, ...data } });
   },
 
-  async delete(weddingId: string, expenseId: string): Promise<boolean> {
-    const r = await prisma.expense.deleteMany({ where: { id: expenseId, weddingId } });
+  async delete(weddingId: string, expenseId: string, db: Prisma.TransactionClient | typeof prisma = prisma): Promise<boolean> {
+    const r = await db.expense.deleteMany({ where: { id: expenseId, weddingId } });
     return r.count > 0;
   },
 
@@ -105,8 +105,11 @@ export const expenseRepository = {
     weddingId: string,
     expenseId: string,
     work: (tx: Prisma.TransactionClient, expense: Expense) => Promise<T>,
+    /** Runs first in the transaction, BEFORE the expense lock (lock order: Wedding, then Expense). */
+    beforeLock?: (tx: Prisma.TransactionClient) => Promise<void>,
   ): Promise<T | null> {
     return prisma.$transaction(async (tx) => {
+      if (beforeLock) await beforeLock(tx);
       const locked = await tx.$queryRaw<{ id: string }[]>`
         SELECT "id" FROM "Expense" WHERE "id" = ${expenseId} AND "weddingId" = ${weddingId} FOR UPDATE`;
       if (locked.length === 0) return null;

@@ -11,5 +11,5 @@
     "rootDir": ".",
     "resolveJsonModule": true
   },
-  "include": ["src", "tests", "prisma", "vitest.config.ts"]
+  "include": ["src", "tests", "prisma", "scripts", "vitest.config.ts"]
 }

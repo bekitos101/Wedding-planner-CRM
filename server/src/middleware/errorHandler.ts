@@ -13,6 +13,14 @@ type PrismaLike = { name: string; code?: string; meta?: { target?: unknown }; st
 const isPrismaError = (err: unknown): err is PrismaLike =>
   !!err && typeof err === 'object' && typeof (err as PrismaLike).name === 'string' && (err as PrismaLike).name.startsWith('PrismaClient');
 
+/** Only the "at ..." frames of a stack: its first lines repeat the error message (query arguments, secrets). */
+export function frameLines(stack: string | undefined): string {
+  return (stack ?? '')
+    .split(/\r?\n/)
+    .filter((l) => /^\s+at /.test(l))
+    .join(String.fromCharCode(10));
+}
+
 function send(res: Parameters<ErrorRequestHandler>[2], status: number, code: string, message: string, fields?: Record<string, string>) {
   res.status(status).json({ error: { code, message, ...(fields ? { fields } : {}) } });
 }
@@ -36,8 +44,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
 
   if (isPrismaError(err) && err.name === 'PrismaClientKnownRequestError') {
     if (err.code === 'P2002') {
-      const target = Array.isArray(err.meta?.target) ? err.meta.target.join(', ') : typeof err.meta?.target === 'string' ? err.meta.target : undefined;
-      return send(res, 409, 'CONFLICT', target ? `A record with this ${target} already exists.` : 'A record with these values already exists.');
+      return send(res, 409, 'CONFLICT', 'This record already exists.');
     }
     if (err.code === 'P2025') {
       return send(res, 404, 'NOT_FOUND', 'The requested resource was not found.');
@@ -57,7 +64,10 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   }
 
   // Prisma messages embed query arguments (possibly secrets): log only safe fields.
-  const safeErr = isPrismaError(err) ? { name: err.name, code: err.code, meta: err.meta, stack: err.stack } : err;
+  // A Prisma stack starts with the full message (argument values), so keep only the frame lines.
+  const safeErr = isPrismaError(err)
+    ? { name: err.name, code: err.code, stack: frameLines(err.stack) }
+    : err;
   logger.error({ err: safeErr, method: req.method, url: maskUrl(req.url) }, 'Unhandled error');
   send(res, 500, 'INTERNAL_ERROR', 'Something went wrong on our side. Please try again later.');
 };

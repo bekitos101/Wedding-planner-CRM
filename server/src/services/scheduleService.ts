@@ -1,6 +1,7 @@
 import type { ScheduleItem } from '@prisma/client';
 import { notFound, validationError } from '../lib/errors.js';
 import { scheduleRepository } from '../repositories/scheduleRepository.js';
+import { inActiveWedding } from './weddingGuard.js';
 
 const NOT_FOUND = 'Schedule item not found.';
 const END_MESSAGE = 'End time must be after start time.';
@@ -91,20 +92,22 @@ export const scheduleService = {
 
   async create(weddingId: string, input: ScheduleInput) {
     assertOrder(input.startTime, input.endTime);
-    const row = await scheduleRepository.create(weddingId, input);
+    const row = await inActiveWedding(weddingId, (tx) => scheduleRepository.create(weddingId, input, tx));
     return respond(weddingId, row.id);
   },
 
   async update(weddingId: string, id: string, patch: Partial<ScheduleInput>) {
-    const current = await scheduleRepository.find(weddingId, id);
-    if (!current) throw notFound(NOT_FOUND);
-    // Validate the merged values so a PATCH of one time cannot invert the interval.
-    assertOrder(patch.startTime ?? current.startTime, patch.endTime ?? current.endTime);
-    if (!(await scheduleRepository.update(weddingId, id, patch))) throw notFound(NOT_FOUND);
+    await inActiveWedding(weddingId, async (tx) => {
+      const current = await scheduleRepository.find(weddingId, id, tx);
+      if (!current) throw notFound(NOT_FOUND);
+      // Validate the merged values so a PATCH of one time cannot invert the interval.
+      assertOrder(patch.startTime ?? current.startTime, patch.endTime ?? current.endTime);
+      if (!(await scheduleRepository.update(weddingId, id, patch, tx))) throw notFound(NOT_FOUND);
+    });
     return respond(weddingId, id);
   },
 
   async remove(weddingId: string, id: string): Promise<void> {
-    if (!(await scheduleRepository.delete(weddingId, id))) throw notFound(NOT_FOUND);
+    if (!(await inActiveWedding(weddingId, (tx) => scheduleRepository.delete(weddingId, id, tx)))) throw notFound(NOT_FOUND);
   },
 };

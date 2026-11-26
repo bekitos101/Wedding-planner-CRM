@@ -45,9 +45,9 @@ export const invitationRepository = {
   },
 
   /** One invitation per guest (BR-05): create it or rotate its token, resetting the delivery state. */
-  async upsertForSend(guestId: string, tokenHash: string): Promise<void> {
+  async upsertForSend(guestId: string, tokenHash: string, db: Prisma.TransactionClient | typeof prisma = prisma): Promise<void> {
     const fresh = { tokenHash, deliveryStatus: 'PENDING' as const, attemptCount: 1, lastError: null, revokedAt: null };
-    await prisma.invitation.upsert({
+    await db.invitation.upsert({
       where: { guestId },
       create: { guestId, ...fresh },
       update: fresh,
@@ -71,10 +71,10 @@ export const invitationRepository = {
   },
 
   /** Sets revokedAt once (keeps the first revocation time). False when the guest has no invitation. */
-  async revoke(guestId: string, now: Date): Promise<boolean> {
-    const inv = await prisma.invitation.findUnique({ where: { guestId }, select: { revokedAt: true } });
+  async revoke(guestId: string, now: Date, db: Prisma.TransactionClient | typeof prisma = prisma): Promise<boolean> {
+    const inv = await db.invitation.findUnique({ where: { guestId }, select: { revokedAt: true } });
     if (!inv) return false;
-    if (!inv.revokedAt) await prisma.invitation.updateMany({ where: { guestId, revokedAt: null }, data: { revokedAt: now } });
+    if (!inv.revokedAt) await db.invitation.updateMany({ where: { guestId, revokedAt: null }, data: { revokedAt: now } });
     return true;
   },
 

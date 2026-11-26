@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import { currentUserId, requireAuth } from '../middleware/auth.js';
 import { validate } from '../lib/validate.js';
@@ -17,23 +17,27 @@ const patchBody = z
     message: 'Provide at least one of name, email or password',
   });
 
-export const meRouter = Router();
+/** `passwordLimiter` counts password-change attempts per user; created per app instance. */
+export function createMeRouter(passwordLimiter: RequestHandler): Router {
+  const meRouter = Router();
 
-meRouter.get('/me', requireAuth, async (req, res, next) => {
-  try {
-    res.json(await userService.getMe(currentUserId(req)));
-  } catch (err) {
-    next(err);
-  }
-});
+  meRouter.get('/me', requireAuth, async (req, res, next) => {
+    try {
+      res.json(await userService.getMe(currentUserId(req)));
+    } catch (err) {
+      next(err);
+    }
+  });
 
-meRouter.patch('/me', requireAuth, async (req, res, next) => {
-  try {
-    const { body } = validate(req, { body: patchBody });
-    const { user, token } = await userService.updateMe(currentUserId(req), body);
-    if (token) res.cookie(AUTH_COOKIE, token, authCookieOptions);
-    res.json(user);
-  } catch (err) {
-    next(err);
-  }
-});
+  meRouter.patch('/me', requireAuth, passwordLimiter, async (req, res, next) => {
+    try {
+      const { body } = validate(req, { body: patchBody });
+      const { user, token } = await userService.updateMe(currentUserId(req), body);
+      if (token) res.cookie(AUTH_COOKIE, token, authCookieOptions);
+      res.json(user);
+    } catch (err) {
+      next(err);
+    }
+  });
+  return meRouter;
+}

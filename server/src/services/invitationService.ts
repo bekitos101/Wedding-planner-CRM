@@ -9,6 +9,7 @@ import { formatDateOnly } from '../lib/schemas.js';
 import { generateToken, hashToken } from '../lib/tokens.js';
 import { guestRepository } from '../repositories/guestRepository.js';
 import { invitationRepository, type InvitationWedding, type RetryCandidate } from '../repositories/invitationRepository.js';
+import { inActiveWedding } from './weddingGuard.js';
 import { guestService, toGuestDto, type GuestDto } from './guestService.js';
 
 export function buildInvitationEmail(guestName: string, w: InvitationWedding, link: string) {
@@ -64,7 +65,8 @@ export const invitationService = {
     const token = generateToken();
     const tokenHash = hashToken(token);
     try {
-      await invitationRepository.upsertForSend(guest.id, tokenHash);
+      // BR-13: the active check shares the write's transaction. The mail is sent after it commits.
+      await inActiveWedding(weddingId, (tx) => invitationRepository.upsertForSend(guest.id, tokenHash, tx));
     } catch (err) {
       // The guest was deleted between the lookup and the write.
       if (isGuestGone(err)) throw notFound('Guest not found.');
@@ -121,7 +123,8 @@ export const invitationService = {
 
   async revoke(weddingId: string, guestId: string): Promise<GuestDto> {
     const guest = await guestService.get(weddingId, guestId);
-    if (!(await invitationRepository.revoke(guest.id, new Date()))) throw notFound('Invitation not found.');
+    const revoked = await inActiveWedding(weddingId, (tx) => invitationRepository.revoke(guest.id, new Date(), tx));
+    if (!revoked) throw notFound('Invitation not found.');
     return toGuestDto(await guestService.get(weddingId, guestId));
   },
 };

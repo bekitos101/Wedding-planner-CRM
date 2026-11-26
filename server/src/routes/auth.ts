@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { validate } from '../lib/validate.js';
 import { authService } from '../services/authService.js';
+import type { AuthLimiters } from './authLimits.js';
 import { AUTH_COOKIE, authCookieOptions, clearCookieOptions } from './cookies.js';
 
 export const emailSchema = z
@@ -26,28 +27,32 @@ const loginBody = z.object({
   password: z.string({ error: 'Password is required' }).min(1, 'Password is required').max(1000),
 });
 
-export const authRouter = Router();
+/** Limiters are created per app instance in createApp() so tests stay isolated. */
+export function createAuthRouter(limits: AuthLimiters): Router {
+  const authRouter = Router();
 
-authRouter.post('/auth/register', async (req, res, next) => {
-  try {
-    const { body } = validate(req, { body: registerBody });
-    const { user, token } = await authService.register(body);
-    res.cookie(AUTH_COOKIE, token, authCookieOptions).status(201).json(user);
-  } catch (err) {
-    next(err);
-  }
-});
+  authRouter.post('/auth/register', limits.registerPerIp, async (req, res, next) => {
+    try {
+      const { body } = validate(req, { body: registerBody });
+      const { user, token } = await authService.register(body);
+      res.cookie(AUTH_COOKIE, token, authCookieOptions).status(201).json(user);
+    } catch (err) {
+      next(err);
+    }
+  });
 
-authRouter.post('/auth/login', async (req, res, next) => {
-  try {
-    const { body } = validate(req, { body: loginBody });
-    const { user, token } = await authService.login(body);
-    res.cookie(AUTH_COOKIE, token, authCookieOptions).status(200).json(user);
-  } catch (err) {
-    next(err);
-  }
-});
+  authRouter.post('/auth/login', limits.loginPerIpAndEmail, limits.loginPerIp, async (req, res, next) => {
+    try {
+      const { body } = validate(req, { body: loginBody });
+      const { user, token } = await authService.login(body);
+      res.cookie(AUTH_COOKIE, token, authCookieOptions).status(200).json(user);
+    } catch (err) {
+      next(err);
+    }
+  });
 
-authRouter.post('/auth/logout', (_req, res) => {
-  res.clearCookie(AUTH_COOKIE, clearCookieOptions).status(204).end();
-});
+  authRouter.post('/auth/logout', (_req, res) => {
+    res.clearCookie(AUTH_COOKIE, clearCookieOptions).status(204).end();
+  });
+  return authRouter;
+}

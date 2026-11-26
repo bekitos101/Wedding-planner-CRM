@@ -21,7 +21,31 @@ export interface WeddingAccessRow {
   hasActiveMembership: boolean;
 }
 
+/** Transaction client handed to repositories that take part in a service-owned transaction. */
+export type Tx = Prisma.TransactionClient;
+
 export const weddingRepository = {
+  /** Runs `work` in one database transaction (services compose repository calls inside it). */
+  transaction<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
+    return prisma.$transaction(work);
+  },
+
+  /**
+   * Locks the wedding row FOR SHARE and returns its status (null = no such wedding). FOR SHARE
+   * conflicts with the UPDATE that archives the wedding, so a concurrent archive waits until this
+   * transaction ends, and a write that starts after the archive committed sees ARCHIVED (BR-13).
+   *
+   * LOCK ORDER (deadlock-free): Wedding row first, then child rows (Guest/Invitation, Expense,
+   * Payment, Supplier, ScheduleItem). The archive path locks the Wedding row (UPDATE) first and
+   * only then Notification rows, and none of the guarded writes touch Notification rows, so the
+   * two paths never wait on each other in a cycle. Never take a child lock before this one.
+   */
+  async lockStatus(tx: Tx, weddingId: string): Promise<WeddingStatus | null> {
+    const rows = await tx.$queryRaw<{ status: WeddingStatus }[]>`
+      SELECT "status"::text AS "status" FROM "Wedding" WHERE "id" = ${weddingId} FOR SHARE`;
+    return rows[0]?.status ?? null;
+  },
+
   create(ownerId: string, data: WeddingFields): Promise<WeddingWithOwner> {
     return prisma.wedding.create({ data: { ownerId, ...data }, include: withOwner });
   },

@@ -6,6 +6,7 @@ import { notFound, validationError } from '../lib/errors.js';
 import { formatDateOnly, formatMoney } from '../lib/schemas.js';
 import { expenseRepository, type ExpenseFields } from '../repositories/expenseRepository.js';
 import { paymentRepository, type PaymentFields } from '../repositories/paymentRepository.js';
+import { assertWeddingActive, inActiveWedding } from './weddingGuard.js';
 
 const ZERO = new Prisma.Decimal(0);
 
@@ -86,7 +87,7 @@ export const expenseService = {
   },
 
   async create(weddingId: string, data: ExpenseFields): Promise<ExpenseDto> {
-    const e = await expenseRepository.create(weddingId, data);
+    const e = await inActiveWedding(weddingId, (tx) => expenseRepository.create(weddingId, data, tx));
     return toExpenseDto(e, ZERO, 0);
   },
 
@@ -99,14 +100,14 @@ export const expenseService = {
       }
       const updated = Object.keys(data).length ? await expenseRepository.updateInTx(tx, expenseId, data) : current;
       return withPayments(tx, updated);
-    });
+    }, (tx) => assertWeddingActive(tx, weddingId));
     if (!res) throw expenseNotFound();
     const { payments: _omit, ...plain } = res;
     return plain;
   },
 
   async remove(weddingId: string, expenseId: string): Promise<void> {
-    if (!(await expenseRepository.delete(weddingId, expenseId))) throw expenseNotFound();
+    if (!(await inActiveWedding(weddingId, (tx) => expenseRepository.delete(weddingId, expenseId, tx)))) throw expenseNotFound();
   },
 
   async addPayment(weddingId: string, expenseId: string, data: PaymentFields): Promise<ExpenseDto> {
@@ -115,7 +116,7 @@ export const expenseService = {
       if (paid.plus(data.amount).gt(e.agreedAmount)) overpaid(e.agreedAmount.minus(paid));
       await paymentRepository.create(tx, expenseId, data);
       return withPayments(tx, e);
-    });
+    }, (tx) => assertWeddingActive(tx, weddingId));
     if (!res) throw expenseNotFound();
     return res;
   },
@@ -130,7 +131,7 @@ export const expenseService = {
       }
       if (Object.keys(data).length) await paymentRepository.update(tx, paymentId, data);
       return withPayments(tx, e);
-    });
+    }, (tx) => assertWeddingActive(tx, weddingId));
     if (!res) throw expenseNotFound();
     return res;
   },
@@ -139,7 +140,7 @@ export const expenseService = {
     const res = await expenseRepository.runLocked(weddingId, expenseId, async (tx, e) => {
       if (!(await paymentRepository.delete(tx, expenseId, paymentId))) throw paymentNotFound();
       return withPayments(tx, e);
-    });
+    }, (tx) => assertWeddingActive(tx, weddingId));
     if (!res) throw expenseNotFound();
     return res;
   },

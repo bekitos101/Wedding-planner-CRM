@@ -1,6 +1,9 @@
 import type { Prisma, RsvpStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 
+/** Client for writes: the shared one, or a transaction client when the service owns the transaction. */
+type Db = Prisma.TransactionClient | typeof prisma;
+
 // The token hash is deliberately NOT selected: planner endpoints never see it.
 const invitationSelect = {
   deliveryStatus: true,
@@ -47,24 +50,24 @@ export const guestRepository = {
     return out;
   },
 
-  find(weddingId: string, guestId: string): Promise<GuestRow | null> {
-    return prisma.guest.findFirst({ where: { id: guestId, weddingId }, include: withInvitation });
+  find(weddingId: string, guestId: string, db: Db = prisma): Promise<GuestRow | null> {
+    return db.guest.findFirst({ where: { id: guestId, weddingId }, include: withInvitation });
   },
 
-  create(weddingId: string, data: GuestCreate): Promise<GuestRow> {
-    return prisma.guest.create({ data: { weddingId, ...data }, include: withInvitation });
+  create(weddingId: string, data: GuestCreate, db: Db = prisma): Promise<GuestRow> {
+    return db.guest.create({ data: { weddingId, ...data }, include: withInvitation });
   },
 
   /** Scoped by weddingId; null when the guest is not in this wedding. */
-  async update(weddingId: string, guestId: string, data: GuestUpdate): Promise<GuestRow | null> {
-    const r = await prisma.guest.updateMany({ where: { id: guestId, weddingId }, data });
+  async update(weddingId: string, guestId: string, data: GuestUpdate, db: Db = prisma): Promise<GuestRow | null> {
+    const r = await db.guest.updateMany({ where: { id: guestId, weddingId }, data });
     if (r.count === 0) return null;
-    return guestRepository.find(weddingId, guestId);
+    return guestRepository.find(weddingId, guestId, db);
   },
 
   /** The invitation row cascades. False when nothing was deleted. */
-  async delete(weddingId: string, guestId: string): Promise<boolean> {
-    const r = await prisma.guest.deleteMany({ where: { id: guestId, weddingId } });
+  async delete(weddingId: string, guestId: string, db: Db = prisma): Promise<boolean> {
+    const r = await db.guest.deleteMany({ where: { id: guestId, weddingId } });
     return r.count > 0;
   },
 };

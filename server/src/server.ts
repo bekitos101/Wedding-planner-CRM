@@ -2,6 +2,7 @@ import { env } from './config/env.js';
 import { createApp } from './app.js';
 import { startJobs, stopJobs, waitForJobs } from './jobs/index.js';
 import { logger } from './lib/logger.js';
+import { safeErrorInfo } from './lib/safeError.js';
 import { reminderService } from './services/reminderService.js';
 
 const app = createApp();
@@ -12,7 +13,7 @@ if (env.CRON_ENABLED) {
   reminderService
     .syncAllReminders()
     .then((n) => logger.info({ tasks: n }, 'Reminder backfill finished'))
-    .catch((err: unknown) => logger.error({ error: err instanceof Error ? err.message : 'unknown error' }, 'Reminder backfill failed'));
+    .catch((err: unknown) => logger.error({ err: safeErrorInfo(err) }, 'Reminder backfill failed'));
   startJobs();
 } else {
   logger.info('CRON_ENABLED=false: scheduled jobs are not running');

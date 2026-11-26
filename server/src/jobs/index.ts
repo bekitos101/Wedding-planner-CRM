@@ -1,5 +1,6 @@
 import cron, { type ScheduledTask } from 'node-cron';
 import { logger } from '../lib/logger.js';
+import { safeErrorInfo } from '../lib/safeError.js';
 import { runReminderJob } from './reminderJob.js';
 import { runRetryJob } from './retryJob.js';
 
@@ -22,7 +23,7 @@ export function guarded(name: string, run: () => Promise<unknown>): () => Promis
       try {
         await run();
       } catch (err) {
-        logger.error({ job: name, error: err instanceof Error ? err.message : 'unknown error' }, 'Job run failed');
+        logger.error({ job: name, err: safeErrorInfo(err) }, 'Job run failed');
       } finally {
         running = false;
       }

@@ -46,6 +46,19 @@ describe('SchedulePage', () => {
     expect(rows[2].textContent).not.toContain('Overlaps');
   });
 
+  it('AC-10: items are displayed chronologically, grouped by day, in the order the API returns them', () => {
+    const { el } = setup([
+      item({ id: 'a', title: 'Rehearsal', startTime: '2027-06-11T16:00:00.000Z', endTime: '2027-06-11T17:00:00.000Z' }),
+      item({ id: 'b', title: 'Ceremony', startTime: '2027-06-12T12:00:00.000Z', endTime: '2027-06-12T13:00:00.000Z' }),
+      item({ id: 'c', title: 'Photos', startTime: '2027-06-12T13:30:00.000Z', endTime: '2027-06-12T14:30:00.000Z' }),
+      item({ id: 'd', title: 'Dinner', startTime: '2027-06-12T17:00:00.000Z', endTime: '2027-06-12T19:00:00.000Z' }),
+    ]);
+    const titles = Array.from(el.querySelectorAll('[data-testid=schedule-item] .font-medium:not(.tabular-nums)')).map((n) => n.textContent?.trim());
+    expect(titles).toEqual(['Rehearsal', 'Ceremony', 'Photos', 'Dinner']);
+    expect(el.querySelectorAll('section h2').length).toBe(2);
+    expect(el.querySelectorAll('[data-testid=schedule-item]')[0].closest('section')?.querySelectorAll('[data-testid=schedule-item]').length).toBe(1);
+  });
+
   it('BR-12: shows returned warnings as a dismissible alert after saving', () => {
     const { fixture, ctrl, el } = setup([item({})]);
     fixture.componentInstance.onSaved({

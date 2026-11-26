@@ -78,7 +78,7 @@ describe('error mapping', () => {
     const res = await request(app()).post('/api/dup').send({ email: user.email });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('CONFLICT');
-    expect(res.body.error.message).toContain('email');
+    expect(res.body.error.message).toBe('This record already exists.');
     expect(res.body.error.message).not.toContain(user.email);
   });
 

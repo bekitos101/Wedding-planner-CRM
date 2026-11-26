@@ -53,6 +53,10 @@ const templates: { name: string; description: string; items: Item[] }[] = [
 ];
 
 async function main() {
+  // The demo accounts have a public password (NFR-01): never seed a production database.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to run the demo seed with NODE_ENV=production.');
+  }
   const passwordHash = await bcrypt.hash('Password123!', 12);
 
   // passwordHash is not overwritten on re-runs

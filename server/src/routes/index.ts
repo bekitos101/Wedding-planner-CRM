@@ -1,12 +1,10 @@
 import { Router } from 'express';
-import { authRouter } from './auth.js';
 import { budgetRouter } from './budget.js';
 import { dashboardRouter } from './dashboard.js';
 import { guestsRouter, rsvpRouter } from './guests.js';
 import { planningRouter } from './planning.js';
 import { checklistTemplatesRouter, tasksRouter } from './tasks.js';
 import { healthRouter } from './health.js';
-import { meRouter } from './me.js';
 import { membersRouter } from './members.js';
 import { notificationsRouter } from './notifications.js';
 import { weddingScoped } from './weddingScoped.js';
@@ -15,8 +13,7 @@ import { weddingsRouter } from './weddings.js';
 export const apiRouter = Router();
 // NOTE: the public contact router is mounted in app.ts with a per-app rate limiter. Do not mount it here.
 apiRouter.use(healthRouter);
-apiRouter.use(authRouter);
-apiRouter.use(meRouter);
+// NOTE: auth (login/register) and /me are mounted in app.ts with per-app rate limiters.
 apiRouter.use(weddingsRouter); // GET/POST /weddings (+ the wedding's own routes, registered on weddingScoped)
 
 // Everything under /weddings/:weddingId goes through weddingScoped, which applies
