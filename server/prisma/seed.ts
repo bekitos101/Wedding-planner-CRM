@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { PrismaClient, type TaskPriority } from '@prisma/client';
 import { seedBudget } from './seeds/budget.js';
+import { seedDemo } from './seeds/demo.js';
 import { seedGuests } from './seeds/guests.js';
 import { seedPlanning } from './seeds/planning.js';
 import { seedTasks } from './seeds/tasks.js';
@@ -9,6 +10,8 @@ const prisma = new PrismaClient();
 
 const WEDDING_1_ID = '00000000-0000-4000-8000-000000000001';
 const WEDDING_2_ID = '00000000-0000-4000-8000-000000000002';
+const WEDDING_3_ID = '00000000-0000-4000-8000-000000000003';
+const WEDDING_4_ID = '00000000-0000-4000-8000-000000000004';
 
 type Item = [title: string, priority: TaskPriority, daysBeforeWedding: number, description?: string];
 
@@ -62,6 +65,12 @@ async function main() {
     create: { name: 'Tom Teammate', email: 'member@demo.test', passwordHash },
   });
 
+  const mkUser = (name: string, email: string) =>
+    prisma.user.upsert({ where: { email }, update: { name }, create: { name, email, passwordHash } });
+  const assistant = await mkUser('Anna Assistant', 'assistant@demo.test');
+  const former = await mkUser('Mark Former', 'former@demo.test');
+  const planner2 = await mkUser('Peter Planner', 'planner2@demo.test');
+
   const weddings = [
     { id: WEDDING_1_ID, coupleNames: 'Emma & Daniel', weddingDate: '2027-06-19', rsvpDeadline: '2027-05-19', location: 'Lake Balaton Manor', totalBudget: '25000.00' },
     { id: WEDDING_2_ID, coupleNames: 'Sofia & Marco', weddingDate: '2027-09-25', rsvpDeadline: '2027-08-25', location: 'Budapest Riverside Hall', totalBudget: '18000.00' },
@@ -90,6 +99,33 @@ async function main() {
     update: {},
     create: { weddingId: WEDDING_1_ID, userId: member.id },
   });
+  // Wedding 3 is archived (Archived tab); wedding 4 belongs to a different planner (isolation demo).
+  const extra = [
+    { id: WEDDING_3_ID, ownerId: owner.id, coupleNames: 'Lili & Bence', weddingDate: '2026-09-12', rsvpDeadline: '2026-08-12', location: 'Szentendre Vineyard Pavilion', totalBudget: '12000.00', archived: true },
+    { id: WEDDING_4_ID, ownerId: planner2.id, coupleNames: 'Judit & Andras', weddingDate: '2027-08-14', rsvpDeadline: '2027-07-14', location: 'Eger Winery Estate', totalBudget: '9000.00', archived: false },
+  ];
+  for (const w of extra) {
+    await prisma.wedding.upsert({
+      where: { id: w.id },
+      update: {},
+      create: {
+        id: w.id, ownerId: w.ownerId, coupleNames: w.coupleNames, location: w.location, totalBudget: w.totalBudget,
+        weddingDate: new Date(`${w.weddingDate}T00:00:00.000Z`), rsvpDeadline: new Date(`${w.rsvpDeadline}T00:00:00.000Z`),
+        ...(w.archived ? { status: 'ARCHIVED' as const, archivedAt: new Date('2026-09-20T09:00:00.000Z') } : {}),
+      },
+    });
+  }
+  for (const [weddingId, userId, revoked] of [
+    [WEDDING_1_ID, assistant.id, false],
+    [WEDDING_2_ID, assistant.id, false],
+    [WEDDING_1_ID, former.id, true],
+  ] as const) {
+    await prisma.weddingMember.upsert({
+      where: { weddingId_userId: { weddingId, userId } },
+      update: {},
+      create: { weddingId, userId, ...(revoked ? { status: 'REVOKED' as const, revokedAt: new Date('2026-10-01T08:00:00.000Z') } : {}) },
+    });
+  }
 
   // Demo tasks for wedding 1 (fixed ids, idempotent) so the list shows non-zero progress (FR-10).
   const demoTasks: [string, string, 'TODO' | 'IN_PROGRESS' | 'COMPLETED', number][] = [
@@ -123,13 +159,21 @@ async function main() {
   }
 
   // Phase 3 tracks add their demo data in prisma/seeds/<track>.ts (don't edit this file).
-  const ctx = { prisma, ownerId: owner.id, memberId: member.id, wedding1Id: WEDDING_1_ID, wedding2Id: WEDDING_2_ID };
+  const ctx = {
+    prisma, ownerId: owner.id, memberId: member.id, wedding1Id: WEDDING_1_ID, wedding2Id: WEDDING_2_ID,
+    assistantId: assistant.id, formerId: former.id, planner2Id: planner2.id, wedding3Id: WEDDING_3_ID, wedding4Id: WEDDING_4_ID,
+  };
   await seedGuests(ctx);
   await seedTasks(ctx);
   await seedBudget(ctx);
   await seedPlanning(ctx);
+  const demo = await seedDemo(ctx);
 
-  console.log('Seed complete: 2 users, 2 weddings, 1 membership, 2 checklist templates, phase 3 demo data.');
+  console.log('Seed complete: 5 users, 4 weddings (1 archived), memberships, 2 checklist templates, demo data.');
+  if (demo.rsvpUrls.length > 0) {
+    console.log('\nDemo RSVP links (demo-only, not created in production):');
+    for (const u of demo.rsvpUrls) console.log(`  ${u.label}: ${u.url}`);
+  }
 }
 
 main()

@@ -23,7 +23,8 @@ export interface ScheduleInput {
 }
 
 /** a.start < b.end AND b.start < a.end (back-to-back does not overlap). */
-const overlaps = (a: ScheduleItem, b: ScheduleItem) => a.startTime < b.endTime && b.startTime < a.endTime;
+type Span = Pick<ScheduleItem, 'id' | 'startTime' | 'endTime'>;
+const overlaps = (a: Span, b: Span) => a.startTime < b.endTime && b.startTime < a.endTime;
 
 function toDto(i: ScheduleItem, overlapsWith: string[]) {
   return {
@@ -42,7 +43,7 @@ export type ScheduleItemDto = ReturnType<typeof toDto>;
  * One pass over the list sorted by start time: for each item only later items that start before
  * it ends can overlap it, so the inner scan stops early. Results are mirrored to both sides.
  */
-function computeOverlaps(sorted: ScheduleItem[]): Map<string, string[]> {
+export function computeOverlaps(sorted: Span[]): Map<string, string[]> {
   const map = new Map<string, string[]>(sorted.map((i) => [i.id, []]));
   for (let i = 0; i < sorted.length; i++) {
     for (let j = i + 1; j < sorted.length && sorted[j]!.startTime < sorted[i]!.endTime; j++) {

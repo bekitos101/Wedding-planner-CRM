@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { toDateOnly } from '../lib/dates.js';
+import { percentOf } from '../lib/percent.js';
 import type { WeddingWithOwner } from '../repositories/weddingRepository.js';
 
 export type WeddingRole = 'OWNER' | 'TEAM_MEMBER';
@@ -16,7 +17,7 @@ export const toMoney = (d: Prisma.Decimal): string => d.toFixed(2);
 export function toProgress(counts?: { total: number; completed: number }): Progress {
   const total = counts?.total ?? 0;
   const completed = counts?.completed ?? 0;
-  return { completed, total, percent: total === 0 ? 0 : Math.floor((completed * 100) / total) };
+  return { completed, total, percent: percentOf(completed, total) };
 }
 
 export function toWeddingDto(w: WeddingWithOwner, role: WeddingRole, progress: Progress) {

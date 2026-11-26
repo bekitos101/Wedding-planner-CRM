@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authRouter } from './auth.js';
 import { budgetRouter } from './budget.js';
+import { dashboardRouter } from './dashboard.js';
 import { guestsRouter, rsvpRouter } from './guests.js';
 import { planningRouter } from './planning.js';
 import { checklistTemplatesRouter, tasksRouter } from './tasks.js';
@@ -29,5 +30,7 @@ weddingScoped.use(guestsRouter); // 3A: /guests, /guests/:guestId/invitation/...
 weddingScoped.use(tasksRouter); // 3B: /tasks, /checklist-templates/:templateId/apply
 weddingScoped.use(budgetRouter); // 3C: /expenses, /expenses/:expenseId/payments, /budget
 weddingScoped.use(planningRouter); // 3D: /suppliers, /schedule
+// Phase 4: read-only dashboard + reports, at the root of weddingScoped (guard already ran).
+weddingScoped.use(dashboardRouter); // /dashboard, /reports/guests, /reports/budget
 apiRouter.use(rsvpRouter); // 3A public: /rsvp/:token (no login)
 apiRouter.use(checklistTemplatesRouter); // 3B: /checklist-templates (login required)

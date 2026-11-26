@@ -1,7 +1,7 @@
 import { Prisma, type MemberStatus, type TaskPriority, type TaskStatus, type WeddingStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 
-const withAssignee = { assignee: { select: { id: true, name: true } } } satisfies Prisma.TaskInclude;
+export const withAssignee = { assignee: { select: { id: true, name: true } } } satisfies Prisma.TaskInclude;
 
 export type TaskRow = Prisma.TaskGetPayload<{ include: typeof withAssignee }>;
 

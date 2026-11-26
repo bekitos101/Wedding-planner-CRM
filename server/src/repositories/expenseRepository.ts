@@ -1,4 +1,5 @@
 import { Prisma, type Expense } from '@prisma/client';
+import { toDateOnly } from '../lib/dates.js';
 import { prisma } from '../lib/prisma.js';
 
 export interface ExpenseFields {
@@ -29,6 +30,31 @@ export interface BudgetFigures {
   overdue: OverdueRow[];
 }
 
+/**
+ * Budget figures using an existing transaction client (callers that own a REPEATABLE READ
+ * snapshot, e.g. the dashboard). Overdue expenses are computed in SQL: dueDate before `today`
+ * and agreedAmount > sum of payments.
+ */
+export async function budgetFiguresIn(tx: Prisma.TransactionClient, weddingId: string, today: Date): Promise<BudgetFigures> {
+  const wedding = await tx.wedding.findUnique({ where: { id: weddingId }, select: { totalBudget: true } });
+  const e = await tx.expense.aggregate({ where: { weddingId }, _sum: { agreedAmount: true } });
+  const p = await tx.payment.aggregate({ where: { expense: { weddingId } }, _sum: { amount: true } });
+  const overdue = await tx.$queryRaw<OverdueRow[]>`
+    SELECT e."id", e."description", e."category", e."dueDate",
+           e."agreedAmount" - COALESCE(SUM(p."amount"), 0) AS "outstanding"
+    FROM "Expense" e LEFT JOIN "Payment" p ON p."expenseId" = e."id"
+    WHERE e."weddingId" = ${weddingId} AND e."dueDate" < ${toDateOnly(today)}::date
+    GROUP BY e."id"
+    HAVING e."agreedAmount" > COALESCE(SUM(p."amount"), 0)
+    ORDER BY e."dueDate" ASC, e."description" ASC`;
+  return {
+    totalBudget: wedding?.totalBudget ?? new Prisma.Decimal(0),
+    committed: e._sum.agreedAmount ?? new Prisma.Decimal(0),
+    paid: p._sum.amount ?? new Prisma.Decimal(0),
+    overdue,
+  };
+}
+
 export const expenseRepository = {
   /** Expenses of a wedding sorted by dueDate then description. */
   listByWedding(weddingId: string): Promise<Expense[]> {
@@ -48,34 +74,12 @@ export const expenseRepository = {
 
   /**
    * Everything the budget summary / dashboard needs, read in ONE REPEATABLE READ transaction so
-   * the figures always agree with each other (NFR-14). Overdue expenses are computed in SQL:
-   * dueDate before `today` and agreedAmount > sum of payments.
+   * the figures always agree with each other (NFR-14).
    */
   budgetFigures(weddingId: string, today: Date): Promise<BudgetFigures> {
-    return prisma.$transaction(
-      async (tx) => {
-        const [wedding, e, p, overdue] = await Promise.all([
-          tx.wedding.findUnique({ where: { id: weddingId }, select: { totalBudget: true } }),
-          tx.expense.aggregate({ where: { weddingId }, _sum: { agreedAmount: true } }),
-          tx.payment.aggregate({ where: { expense: { weddingId } }, _sum: { amount: true } }),
-          tx.$queryRaw<OverdueRow[]>`
-            SELECT e."id", e."description", e."category", e."dueDate",
-                   e."agreedAmount" - COALESCE(SUM(p."amount"), 0) AS "outstanding"
-            FROM "Expense" e LEFT JOIN "Payment" p ON p."expenseId" = e."id"
-            WHERE e."weddingId" = ${weddingId} AND e."dueDate" < ${today}::date
-            GROUP BY e."id"
-            HAVING e."agreedAmount" > COALESCE(SUM(p."amount"), 0)
-            ORDER BY e."dueDate" ASC, e."description" ASC`,
-        ]);
-        return {
-          totalBudget: wedding?.totalBudget ?? new Prisma.Decimal(0),
-          committed: e._sum.agreedAmount ?? new Prisma.Decimal(0),
-          paid: p._sum.amount ?? new Prisma.Decimal(0),
-          overdue,
-        };
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
-    );
+    return prisma.$transaction((tx) => budgetFiguresIn(tx, weddingId, today), {
+      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+    });
   },
 
   /** Scoped by weddingId AND id. */

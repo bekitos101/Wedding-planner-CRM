@@ -98,6 +98,9 @@ docs/
 - Every business rule (BR-xx) and every acceptance criterion (AC-xx) gets at least one test.
   Name tests with the ID, e.g. `it('AC-04: member cannot update another member's task')`.
 - If you change an endpoint, update docs/API.md in the same change.
+- Any CSV/spreadsheet export must neutralise formula injection (CWE-1236): text cells starting
+  with `=`, `+`, `-`, `@`, tab or CR get a leading `'`. Guests can type free text via the public
+  RSVP page, so treat every exported text field as untrusted.
 - **Never commit.** No `git add`, `commit`, `reset`, `stash`, `push` or other state-changing
   git commands — the user commits manually. At the end of a step, suggest a commit message
   referencing FR/AC IDs instead. Read-only git (`status`, `diff`, `log`) is fine.

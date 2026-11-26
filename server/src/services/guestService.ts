@@ -27,6 +27,11 @@ export interface GuestSummary {
   declined: number;
 }
 
+/** One rule for the invitation state (guest list, dashboard, guest report): REVOKED wins over the delivery status. */
+export function invitationStatusOf(inv: { revokedAt: Date | null; deliveryStatus: 'SENT' | 'FAILED' | 'PENDING' }): 'SENT' | 'FAILED' | 'PENDING' | 'REVOKED' {
+  return inv.revokedAt ? 'REVOKED' : inv.deliveryStatus;
+}
+
 export function toGuestDto(g: GuestRow): GuestDto {
   const inv = g.invitation;
   return {
@@ -39,7 +44,7 @@ export function toGuestDto(g: GuestRow): GuestDto {
     createdAt: g.createdAt.toISOString(),
     invitation: inv
       ? {
-          status: inv.revokedAt ? 'REVOKED' : inv.deliveryStatus,
+          status: invitationStatusOf(inv),
           deliveryStatus: inv.deliveryStatus,
           attemptCount: inv.attemptCount,
           lastSentAt: inv.lastSentAt?.toISOString() ?? null,

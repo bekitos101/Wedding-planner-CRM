@@ -8,6 +8,7 @@ import { bearer } from './helpers/auth.js';
 import { disconnectDb, resetDb } from './helpers/db.js';
 import { createUser, createWedding } from './helpers/factories.js';
 import { BUDGET_ROUTES } from './routeSpecs/budget.js';
+import { DASHBOARD_ROUTES } from './routeSpecs/dashboard.js';
 import { GUEST_ROUTES } from './routeSpecs/guests.js';
 import { PLANNING_ROUTES } from './routeSpecs/planning.js';
 import { TASK_ROUTES } from './routeSpecs/tasks.js';
@@ -29,7 +30,7 @@ const PHASE2_ROUTES: RouteSpec[] = [
 ];
 
 /** Every /weddings/:weddingId/... route (the enumeration test fails if a mounted route is missing). */
-const WEDDING_ROUTES: RouteSpec[] = [...PHASE2_ROUTES, ...GUEST_ROUTES, ...TASK_ROUTES, ...BUDGET_ROUTES, ...PLANNING_ROUTES];
+const WEDDING_ROUTES: RouteSpec[] = [...PHASE2_ROUTES, ...GUEST_ROUTES, ...TASK_ROUTES, ...BUDGET_ROUTES, ...PLANNING_ROUTES, ...DASHBOARD_ROUTES];
 
 const call = (r: RouteSpec, c: Ctx, userId?: string) => {
   let req = api()[r.method](r.path(c));

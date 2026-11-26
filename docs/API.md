@@ -286,11 +286,71 @@ Rules:
   `message` = `Overlaps with "<title>".` Overlaps are **allowed** — the item is saved anyway
   (FR-55/56, BR-12, AC-10).
 
-## Dashboard, reports, notifications
+## Dashboard and reports (phase 4)
 | Method | Path | Roles | Notes |
 |---|---|---|---|
-| GET | /weddings/:weddingId/dashboard | O,M | FR-57 fields, all computed |
-| GET | /weddings/:weddingId/reports/guests | O,M | counts by status, dietary list |
-| GET | /weddings/:weddingId/reports/budget | O,M | by category |
+| GET | /weddings/:weddingId/dashboard | O,M | → `Dashboard` |
+| GET | /weddings/:weddingId/reports/guests | O,M | → `GuestReport` |
+| GET | /weddings/:weddingId/reports/budget | O,M | → `BudgetReport` |
+
+Read-only, available on archived weddings too. Every number is computed on request from stored
+records with DB aggregates (`count`/`groupBy`/`aggregate`), read in **one consistent snapshot**
+(one REPEATABLE READ transaction per request) — nothing is stored (FR-59). Team members see the
+same dashboard and reports as the owner (FR-60; see the "team members can read all wedding data"
+decision in CLAUDE.md). Target: < 2 s with 200 guests (NFR-20) — no per-row queries.
+
+**`Dashboard`** (FR-57) =
+```
+{
+  wedding:  { id, coupleNames, weddingDate, location, status, daysUntilWedding },
+  guests:   { total, pending, accepted, declined, responseRate,
+              invitations: { notSent, sent, failed, revoked } },
+  tasks:    { total, todo, inProgress, completed, unfinished, overdue, dueNext7Days,
+              percentComplete, myOpenTasks },
+  budget:   { totalBudget, committed, paid, outstanding, remaining, overdueExpenseCount },
+  suppliers: { total },
+  schedule: { items, overlappingItems },
+  upcomingTasks: Task[]   // up to 5 unfinished tasks, soonest dueDate first (same Task shape as track 3B)
+}
+```
+- `daysUntilWedding` = weddingDate − today (UTC), in days; negative once the date has passed.
+- `responseRate` = floor((accepted + declined) / total × 100); 0 when there are no guests.
+- Invitation counts per guest: `revoked` = invitation with `revokedAt` set; otherwise by
+  `deliveryStatus`: `sent` = SENT, `failed` = FAILED, and `notSent` = no invitation row **or**
+  deliveryStatus PENDING (not delivered yet). `notSent + sent + failed + revoked = guests.total`.
+- `unfinished` = todo + inProgress. `overdue` and `percentComplete` use the same rules as track 3B
+  and the wedding list (`isOverdue`; floor). `dueNext7Days` = unfinished tasks with
+  today ≤ dueDate ≤ today + 7. `myOpenTasks` = unfinished tasks assigned to the **caller**.
+- `budget` is exactly the track 3C `BudgetSummary` (money strings), with `overdueExpenseCount`
+  instead of the list.
+- `schedule.overlappingItems` = number of items whose `overlapsWith` is non-empty.
+
+**`GuestReport`** (FR-58) =
+```
+{
+  summary: { total, pending, accepted, declined, responseRate },
+  dietary: [{ name, rsvpStatus, dietaryRequirements }],      // guests with a non-empty note, by name
+  guests:  [{ name, email, rsvpStatus, respondedAt, dietaryRequirements, invitationStatus }]
+}
+```
+- `guests` = every guest sorted by name (for printing / CSV export); `invitationStatus` =
+  `"NOT_SENT" | "SENT" | "FAILED" | "REVOKED"` (same rule as above). No ids, no tokens.
+
+**`BudgetReport`** (FR-58) =
+```
+{
+  totals: { totalBudget, committed, paid, outstanding, remaining },
+  byCategory: [{ category, expenseCount, committed, paid, outstanding, shareOfCommitted }]
+}
+```
+- Categories are grouped case-insensitively after trimming ("Venue" and "venue " are one group);
+  the label shown is the most common spelling (ties: alphabetical). Sorted by `committed` desc,
+  then category.
+- `shareOfCommitted` = floor(category committed / total committed × 100); 0 when nothing is
+  committed. Money fields are 2-decimal strings computed with Decimal.
+
+## Notifications (phase 5)
+| Method | Path | Roles | Notes |
+|---|---|---|---|
 | GET | /notifications?unread=true | auth | caller's IN_APP notifications |
 | POST | /notifications/:id/read | auth | own only |

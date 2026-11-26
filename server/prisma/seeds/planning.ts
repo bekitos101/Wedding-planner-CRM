@@ -33,7 +33,7 @@ const ITEMS = [
   { id: id(104), title: 'Cocktail hour', startTime: '2027-06-19T13:00:00Z', endTime: '2027-06-19T14:00:00Z', location: 'Terrace', notes: null }, // 15:00-16:00
   { id: id(105), title: 'Couple photos', startTime: '2027-06-19T13:30:00Z', endTime: '2027-06-19T14:30:00Z', location: 'Lakeside', notes: 'Intentional overlap with the cocktail hour.' }, // 15:30-16:30
   { id: id(106), title: 'Dinner', startTime: '2027-06-19T15:00:00Z', endTime: '2027-06-19T17:00:00Z', location: 'Ballroom', notes: null }, // 17:00-19:00
-  { id: id(107), title: 'First dance and party', startTime: '2027-06-19T17:30:00Z', endTime: '2027-06-19T21:30:00Z', location: 'Ballroom', notes: null }, // 19:30-23:30
+  { id: id(107), title: 'First dance', startTime: '2027-06-19T17:30:00Z', endTime: '2027-06-19T18:00:00Z', location: 'Ballroom', notes: 'Starts right after the cake cutting (back-to-back, no overlap).' }, // 19:30-20:00
 ];
 
 export async function seedPlanning(ctx: SeedContext): Promise<void> {

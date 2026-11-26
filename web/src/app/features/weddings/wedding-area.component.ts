@@ -35,6 +35,7 @@ import { WeddingContext } from './wedding-context.service';
               <a class="nav-link" [routerLink]="['/weddings', w.id, 'budget']" routerLinkActive="active">Budget</a>
               <a class="nav-link" [routerLink]="['/weddings', w.id, 'suppliers']" routerLinkActive="active">Suppliers</a>
               <a class="nav-link" [routerLink]="['/weddings', w.id, 'schedule']" routerLinkActive="active">Schedule</a>
+              <a class="nav-link" [routerLink]="['/weddings', w.id, 'reports']" routerLinkActive="active">Reports</a>
               @if (ctx.isOwner()) {
                 <a class="nav-link" [routerLink]="['/weddings', w.id, 'team']" routerLinkActive="active">Team</a>
               }

@@ -91,12 +91,31 @@ Both servers reload automatically when you edit code.
 
 ### Demo accounts
 
-Created by `npm run db:seed`. Password for both: **`Password123!`**
+Created by `npm run db:seed`. Password for all of them: **`Password123!`**
 
 | Email | Who | Role |
 |---|---|---|
-| `owner@demo.test` | Olivia Owner | Owns both demo weddings |
-| `member@demo.test` | Tom Teammate | Team member of the first wedding (read-only, can update tasks assigned to him) |
+| `owner@demo.test` | Olivia Owner | Owns three weddings: Emma & Daniel, Sofia & Marco and (archived) Lili & Bence |
+| `member@demo.test` | Tom Teammate | Active team member of Emma & Daniel (read-only, can update tasks assigned to him) |
+| `assistant@demo.test` | Anna Assistant | Active team member of Emma & Daniel and Sofia & Marco |
+| `former@demo.test` | Mark Former | Revoked member of Emma & Daniel (shows the Revoked chip on the Team page; has no access) |
+| `planner2@demo.test` | Peter Planner | Owns his own wedding (Judit & Andras); Olivia cannot see it, which demonstrates isolation |
+
+### Demo data
+
+`npm run db:seed` is safe to run any number of times (fixed ids, no duplicates). To start from scratch use `npm run db:reset` (drops the data, re-applies migrations and re-seeds).
+
+| Wedding | Owner | What is in it |
+|---|---|---|
+| Emma & Daniel (2027-06-19) | Olivia | The showcase: 40 guests with every RSVP and invitation state (sent, failed, revoked, pending, not invited) and dietary notes, 25 tasks (overdue, due this week, assigned to Olivia, Tom and Anna), 11 expenses with deposits and instalments (over budget, one overdue, one due soon), 10 suppliers, a full-day schedule with intentional overlaps |
+| Sofia & Marco (2027-09-25) | Olivia | Medium data, under budget: 20 guests, 12 tasks (six created from the "Short engagement" checklist template), 6 expenses, 5 suppliers, a short schedule |
+| Lili & Bence (2026-09-12) | Olivia | Archived (Archived tab): 8 guests, 6 completed tasks, 4 fully paid expenses |
+| Judit & Andras (2027-08-14) | Peter | A little data: 3 guests, 3 tasks, 2 expenses, 1 supplier |
+
+Two demo RSVP links are created (never in production). The path pattern is `<APP_BASE_URL>/rsvp/<token>`; **copy the exact URLs from the seed output** (printed at the end of `npm run db:seed`):
+
+- an open link for a pending guest of Emma & Daniel, so you can answer the RSVP and watch the dashboard change;
+- a link for a guest of the archived wedding, which shows the "no longer valid" page.
 
 ### Other local URLs
 

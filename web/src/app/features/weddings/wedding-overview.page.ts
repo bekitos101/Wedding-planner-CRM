@@ -5,12 +5,13 @@ import { errorMessage } from '../../core/forms/server-errors';
 import { ApiError } from '../../core/models/api-error';
 import { MoneyPipe } from '../../core/pipes/money.pipe';
 import { ConfirmDialogComponent } from '../../core/ui/confirm-dialog.component';
+import { DashboardPanelComponent } from '../dashboard/dashboard-panel.component';
 import { WeddingContext } from './wedding-context.service';
 import { WeddingService } from './wedding.service';
 
 @Component({
   selector: 'app-wedding-overview-page',
-  imports: [RouterLink, DateOnlyPipe, MoneyPipe, ConfirmDialogComponent],
+  imports: [RouterLink, DateOnlyPipe, MoneyPipe, ConfirmDialogComponent, DashboardPanelComponent],
   template: `
     @if (ctx.wedding(); as w) {
       @if (ctx.isArchived()) {
@@ -47,6 +48,8 @@ import { WeddingService } from './wedding.service';
           </dd>
         </dl>
       </section>
+
+      <app-dashboard-panel [weddingId]="w.id" />
 
       @if (confirming()) {
         <app-confirm-dialog

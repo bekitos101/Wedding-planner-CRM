@@ -77,10 +77,10 @@ each track owns its own route/service/repository/test files and its own web feat
 - [x] Web: supplier list/form; timeline view with overlap highlight
 
 ## Phase 4 — Dashboard and reports (FR-57..60, NFR-20)
-- [ ] `GET /weddings/:id/dashboard` aggregating via queries (groupBy/aggregate), no stored totals
-- [ ] Reports: guest responses (counts + dietary list), budget status by category
-- [ ] Tests: AC-11 (seed known data, assert exact numbers)
-- [ ] Web: dashboard cards + simple charts; reports page
+- [x] `GET /weddings/:id/dashboard` aggregating via queries (groupBy/aggregate), no stored totals
+- [x] Reports: guest responses (counts + dietary list), budget status by category
+- [x] Tests: AC-11 (seed known data, assert exact numbers)
+- [x] Web: dashboard cards + simple charts; reports page
 
 ## Notes from the Phase 0 review (apply in the named phase)
 - Phase 2: don't let the owner also get a `WeddingMember` row (BR-01/02). On revoke, unassign
